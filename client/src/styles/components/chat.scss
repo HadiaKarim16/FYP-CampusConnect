@@ -1,0 +1,615 @@
+// =============================================================================
+// CAMPUSCONNECT CHAT INTERFACE STYLES
+// Main SCSS file for the chat application components
+// =============================================================================
+
+// =============================================================================
+// MAIN CHAT APPLICATION CONTAINER
+// Wraps the entire chat interface with black background theme
+// =============================================================================
+.chatApp-container {
+  height: 100vh;                    // Full viewport height
+  display: flex;                    // Flexbox for layout
+  flex-direction: column;           // Stack children vertically
+  background-color: #000000;        // Primary black background
+  color: #ffffff;                   // Default white text for contrast
+  
+  // Optional application header - currently hidden but available for future use
+  .app-header {
+    background-color: #1a1a1a;      // Dark gray header background
+    padding: 0.5rem 1rem;           // Compact padding
+    border-bottom: 1px solid #333;  // Subtle border separation
+    text-align: center;             // Center align header content
+    
+    h3 {
+      margin: 0;                    // Remove default margins
+      color: #ffffff;               // White header text
+      font-size: 1rem;              // Appropriate font size
+    }
+  }
+  
+  // Main chat application area - takes remaining space
+  .chat-app {
+    flex: 1;                        // Take all available space
+    overflow: hidden;               // Prevent overflow issues
+  }
+}
+
+// =============================================================================
+// MAIN CHAT LAYOUT - SPLIT SCREEN DESIGN
+// Contains sidebar (30%) and main chat window (70%)
+// =============================================================================
+.chat-layout {
+  display: flex;                    // Flexbox for horizontal split
+  height: 100%;                     // Full height of parent
+  background-color: #000000;        // Black background for entire layout
+}
+
+// =============================================================================
+// SIDEBAR CONTAINER (LEFT 30%)
+// Contains chat list and search functionality
+// =============================================================================
+.chat-sidebar-container {
+  width: 30%;                       // Fixed 30% width
+  border-right: 1px solid #333333;  // Dark border for separation
+  background-color: #1a1a1a;        // Dark gray sidebar background
+  color: #ffffff;                   // White text for sidebar
+}
+
+// =============================================================================
+// MAIN CHAT WINDOW CONTAINER (RIGHT 70%)
+// Contains active conversation and message input
+// =============================================================================
+.chat-window-container {
+  width: 70%;                       // Fixed 70% width
+  background-color: #000000;        // Black background for chat area
+  color: #ffffff;                   // White text for chat content
+}
+
+/* =============================================================================
+   CHAT SIDEBAR STYLES
+   Styles for the conversation list and search area
+   ============================================================================= */
+.chat-sidebar {
+  height: 100%;                     // Full height of container
+  display: flex;                    // Flexbox layout
+  flex-direction: column;           // Stack children vertically
+}
+
+// Sidebar header containing title and search
+.sidebar-header {
+  padding: 1rem;                    // Comfortable padding
+  border-bottom: 1px solid #333333; // Dark border separation
+  background-color: #1a1a1a;        // Match sidebar background
+  
+  h2 {
+    margin: 0 0 0.5rem 0;           // Bottom margin only
+    color: #ffffff;                 // White title text
+    font-size: 1.25rem;             // Prominent font size
+    font-weight: 600;
+  }
+}
+
+// Search input field styling
+.search-input {
+  width: 100%;                      // Full width of container
+  padding: 0.5rem;                  // Comfortable padding
+  border: 1px solid #444444;        // Dark border
+  border-radius: 8px;               // Rounded corners
+  font-size: 0.9rem;                // Appropriate font size
+  background-color: #2d2d2d;        // Dark input background
+  color: #ffffff;                   // White input text
+  
+  // Focus state for better accessibility
+  &:focus {
+    outline: none;                  // Remove default outline
+    border-color: #007bff;          // Blue accent on focus
+    background-color: #333333;      // Slightly lighter on focus
+  }
+  
+  // Placeholder text styling
+  &::placeholder {
+    color: #888888;                 // Gray placeholder text
+  }
+}
+
+// Container for the list of chats
+.chats-list {
+  flex: 1;                          // Take all available space
+  overflow-y: auto;                 // Enable vertical scrolling
+}
+
+// Individual chat list item
+.chat-item {
+  display: flex;                    // Flexbox for horizontal layout
+  padding: 1rem;                    // Comfortable padding
+  border-bottom: 1px solid #2d2d2d; // Subtle separation between items
+  cursor: pointer;                  // Pointer cursor on hover
+  position: relative;               // For positioning indicators
+  background-color: #1a1a1a;        // Dark background
+  transition: background-color 0.2s ease; // Smooth hover transition
+  
+  // Hover state for better interactivity
+  &:hover {
+    background-color: #2d2d2d;      // Lighten background on hover
+  }
+}
+
+// Active/selected chat item
+.chat-item.active {
+  background-color: #003366;        // Dark blue background for active item
+  border-left: 3px solid #007bff;   // Blue accent border
+}
+
+// Chat avatar/icon container
+.chat-avatar {
+  margin-right: 1rem;               // Space between avatar and content
+  width: 40px;                      // Fixed width
+  height: 40px;                     // Fixed height (square)
+  border-radius: 50%;               // Circular avatar
+  background-color: #007bff;        // Blue background for avatar
+  display: flex;                    // Center content
+  align-items: center;              // Vertical center
+  justify-content: center;          // Horizontal center
+  color: white;                     // White icon/text
+  font-size: 1rem;                  // Appropriate icon size
+}
+
+// Main content area of chat item
+.chat-content {
+  flex: 1;                          // Take remaining space
+  min-width: 0;                     // Prevents text overflow issues
+}
+
+// Header containing name and timestamp
+.chat-header {
+  display: flex;                    // Flexbox for horizontal layout
+  justify-content: space-between;   // Space out name and time
+  align-items: center;              // Vertically align items
+  margin-bottom: 0.25rem;           // Space below header
+}
+
+// Chat participant name
+.chat-name {
+  font-weight: 600;                 // Bold for emphasis
+  color: #ffffff;                   // White text
+  font-size: 0.9rem;                // Appropriate size
+}
+
+// Message timestamp
+.chat-time {
+  font-size: 0.75rem;               // Smaller text for timestamps
+  color: #888888;                   // Gray color for less importance
+}
+
+// Last message preview text
+.chat-preview {
+  font-size: 0.85rem;               // Slightly smaller text
+  color: #aaaaaa;                   // Light gray for preview
+  white-space: nowrap;              // Single line
+  overflow: hidden;                 // Hide overflow
+  text-overflow: ellipsis;          // Show ellipsis for long text
+}
+
+// Online status indicator (green dot)
+.online-indicator {
+  width: 8px;                       // Small dot size
+  height: 8px;                      // Small dot size
+  background-color: #4CAF50;        // Green color for online status
+  border-radius: 50%;               // Circular indicator
+  position: absolute;               // Position relative to chat item
+  top: 1rem;                        // Position from top
+  left: 2.5rem;                     // Position from left (near avatar)
+}
+
+// Unread message indicator (blue dot)
+.unread-indicator {
+  width: 8px;                       // Small dot size
+  height: 8px;                      // Small dot size
+  background-color: #007bff;        // Blue color for unread
+  border-radius: 50%;               // Circular indicator
+  position: absolute;               // Position relative to chat item
+  top: 50%;                         // Center vertically
+  right: 1rem;                      // Position from right
+  transform: translateY(-50%);      // Perfect vertical centering
+}
+
+// Connection warning in sidebar
+.connection-warning {
+  background-color: #f44336;        // Red background for warning
+  color: white;                     // White text
+  padding: 0.5rem;                  // Compact padding
+  text-align: center;               // Center text
+  font-size: 0.8rem;                // Small text
+  border-top: 1px solid #333;       // Top border
+}
+
+/* =============================================================================
+   CHAT WINDOW STYLES
+   Styles for the main conversation area
+   ============================================================================= */
+.chat-window {
+  height: 100%;                     // Full height of container
+  display: flex;                    // Flexbox layout
+  flex-direction: column;           // Stack children vertically
+  background-color: #000000;        // Black background
+  color: #ffffff;                   // White text
+
+  // ===========================================================================
+  // EMPTY STATE - when no conversation is selected
+  // ===========================================================================
+  &.empty {
+    display: flex;                  // Flexbox for centering
+    align-items: center;            // Vertical center
+    justify-content: center;        // Horizontal center
+    background-color: #000000;      // Black background
+    
+    .empty-state {
+      text-align: center;           // Center text alignment
+      color: #888888;               // Gray text for empty state
+      
+      h3 {
+        margin-bottom: 0.5rem;      // Space below heading
+        color: #ffffff;             // White heading
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      
+      p {
+        margin: 0;                  // Remove default margins
+        font-size: 1rem;            // Appropriate text size
+        color: #aaaaaa;
+      }
+
+      // Test button for development
+      button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+          background: #0056b3;
+        }
+      }
+    }
+  }
+}
+
+// =============================================================================
+// CHAT HEADER - top bar with contact info and actions
+// =============================================================================
+.chat-header {
+  display: flex;                    // Flexbox for horizontal layout
+  justify-content: space-between;   // Space out info and actions
+  align-items: center;              // Vertically center items
+  padding: 1rem;                    // Comfortable padding
+  border-bottom: 1px solid #333333; // Dark border separation
+  background-color: #1a1a1a;        // Dark header background
+
+  // Fix for duplicate class name conflict
+  &.chat-window-header {
+    background-color: #1a1a1a;
+  }
+}
+
+// Contact information area
+.chat-info {
+  h3 {
+    margin: 0 0 0.25rem 0;          // Bottom margin only
+    color: #ffffff;                 // White contact name
+    font-size: 1.1rem;              // Prominent size
+    font-weight: 600;
+  }
+  
+  .status {
+    font-size: 0.8rem;              // Smaller status text
+    color: #4CAF50;                 // Green for online status
+    
+    // Style for offline status
+    &.offline {
+      color: #888888;               // Gray for offline
+    }
+  }
+}
+
+// Action buttons container (call, video, menu)
+.chat-actions {
+  display: flex;                    // Flexbox for button layout
+  gap: 0.5rem;                      // Space between buttons
+}
+
+// Individual action button
+.action-btn {
+  background: none;                 // Transparent background
+  border: none;                     // No border
+  font-size: 1.2rem;                // Emoji/icons size
+  cursor: pointer;                  // Pointer cursor
+  padding: 0.25rem;                 // Comfortable click area
+  border-radius: 4px;               // Slightly rounded corners
+  color: #ffffff;                   // White icons
+  transition: background-color 0.2s ease;
+  
+  // Hover state for better interactivity
+  &:hover {
+    background-color: #333333;      // Light gray on hover
+  }
+
+  // Disabled state
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// =============================================================================
+// CONVERSATION START INFO
+// Shows when the conversation started
+// =============================================================================
+.conversation-start {
+  text-align: center;               // Center aligned text
+  padding: 0.5rem;                  // Compact padding
+  font-size: 0.8rem;                // Small text size
+  color: #888888;                   // Gray text for less importance
+  background-color: #1a1a1a;        // Dark background
+  border-bottom: 1px solid #333333; // Dark border separation
+}
+
+// =============================================================================
+// MESSAGES CONTAINER
+// Area where messages are displayed
+// =============================================================================
+.messages-container {
+  flex: 1;                          // Take all available space
+  padding: 1rem;                    // Comfortable padding
+  overflow-y: auto;                 // Enable scrolling for many messages
+  background-color: #000000;        // Black background for messages area
+  
+  // Custom scrollbar for webkit browsers
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #1a1a1a;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #444444;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #555555;
+  }
+}
+
+// =============================================================================
+// INDIVIDUAL MESSAGE STYLES
+// Styles for both sent and received messages
+// =============================================================================
+.message {
+  display: flex;                    // Flexbox for message alignment
+  margin-bottom: 1rem;              // Space between messages
+  align-items: flex-end;            // Align avatars with message bottom
+}
+
+// Messages sent by the current user (aligned right)
+.own-message {
+  justify-content: flex-end;        // Align to right side
+  
+  .message-content {
+    flex-direction: row-reverse;    // Reverse order for own messages
+  }
+}
+
+// Messages received from others (aligned left)
+.other-message {
+  justify-content: flex-start;      // Align to left side
+}
+
+// Message avatar styling
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #007bff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  margin: 0 0.5rem;
+  flex-shrink: 0;
+}
+
+// Message bubble container
+.message-bubble {
+  max-width: 70%;                   // Prevent overly wide messages
+  padding: 0.75rem 1rem;            // Comfortable padding
+  border-radius: 18px;              // Rounded bubble shape
+  background-color: #2d2d2d;        // Dark gray for received messages
+  box-shadow: 0 1px 2px rgba(255,255,255,0.1); // Subtle shadow
+  
+  // Message text content
+  .message-text {
+    margin-bottom: 0.25rem;         // Space above timestamp
+    color: #ffffff;                 // White text
+    line-height: 1.4;               // Comfortable line height
+    word-wrap: break-word;          // Break long words
+  }
+  
+  // Message timestamp
+  .message-time {
+    font-size: 0.7rem;              // Very small text
+    color: #888888;                 // Gray color for less importance
+    text-align: right;              // Align timestamp to right
+  }
+}
+
+// Styles for messages sent by current user
+.own-message .message-bubble {
+  background-color: #007bff;        // Blue background for own messages
+  color: white;                     // White text
+  
+  .message-text {
+    color: white;                   // Ensure white text
+  }
+  
+  .message-time {
+    color: rgba(255,255,255,0.8);   // Semi-transparent white
+  }
+}
+
+// =============================================================================
+// MESSAGE INPUT AREA
+// Bottom section where user types new messages
+// =============================================================================
+.message-input-container {
+  display: flex;                    // Flexbox for horizontal layout
+  padding: 1rem;                    // Comfortable padding
+  border-top: 1px solid #333333;    // Dark border separation
+  align-items: center;              // Vertically center items
+  background-color: #1a1a1a;        // Dark input area background
+  gap: 0.5rem;                      // Space between elements
+}
+
+// Container for attachment/emoji buttons
+.input-actions {
+  display: flex;                    // Flexbox for button layout
+  gap: 0.25rem;                     // Tight spacing between buttons
+}
+
+// Individual action button in input area
+.input-action-btn {
+  background: none;                 // Transparent background
+  border: none;                     // No border
+  font-size: 1.2rem;                // Emoji/icons size
+  cursor: pointer;                  // Pointer cursor
+  padding: 0.5rem;                  // Comfortable click area
+  border-radius: 4px;               // Slightly rounded corners
+  color: #ffffff;                   // White icons
+  transition: background-color 0.2s ease;
+  
+  // Hover state for better interactivity
+  &:hover {
+    background-color: #333333;      // Light gray on hover
+  }
+
+  // Disabled state
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Main message input field
+.message-input {
+  flex: 1;                          // Take all available space
+  padding: 0.75rem 1rem;            // Comfortable padding
+  border: 1px solid #444444;        // Dark border
+  border-radius: 24px;              // Rounded input field
+  font-size: 0.9rem;                // Appropriate text size
+  background-color: #2d2d2d;        // Dark input background
+  color: #ffffff;                   // White input text
+  transition: border-color 0.2s ease;
+  
+  // Focus state for better accessibility
+  &:focus {
+    outline: none;                  // Remove default outline
+    border-color: #007bff;          // Blue accent on focus
+  }
+  
+  // Placeholder text styling
+  &::placeholder {
+    color: #888888;                 // Gray placeholder text
+  }
+
+  // Disabled state
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// Send message button
+.send-button {
+  background: #007bff;              // Blue background
+  border: none;                     // No border
+  color: white;                     // White arrow icon
+  padding: 0.75rem;                 // Comfortable padding
+  border-radius: 50%;               // Circular button
+  cursor: pointer;                  // Pointer cursor
+  font-size: 1rem;                  // Appropriate icon size
+  width: 40px;                      // Fixed width
+  height: 40px;                     // Fixed height (circle)
+  display: flex;                    // Center icon
+  align-items: center;              // Vertical center
+  justify-content: center;          // Horizontal center
+  transition: background-color 0.2s ease; // Smooth hover transition
+  
+  // Hover state
+  &:hover:not(:disabled) {
+    background: #0056b3;            // Darker blue on hover
+  }
+  
+  // Disabled state
+  &:disabled {
+    background: #444444;            // Gray when disabled
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+// Connection banner for when disconnected
+.connection-banner {
+  background-color: #f44336;        // Red background for error
+  color: white;                     // White text
+  padding: 0.5rem 1rem;             // Comfortable padding
+  text-align: center;               // Center text
+  font-size: 0.8rem;                // Small text
+  border-top: 1px solid #333;       // Top border
+}
+
+// Connection status indicator (for debugging)
+.connection-status {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #4CAF50;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+
+  &.disconnected {
+    background: #f44336;
+  }
+}
+
+// =============================================================================
+// RESPONSIVE DESIGN
+// Adjust layout for smaller screens
+// =============================================================================
+@media (max-width: 768px) {
+  .chat-layout {
+    flex-direction: column;         // Stack sidebar and chat window
+  }
+  
+  .chat-sidebar-container,
+  .chat-window-container {
+    width: 100%;                    // Full width on mobile
+    height: 50%;                    // Split height
+  }
+  
+  .chat-sidebar-container {
+    border-right: none;             // Remove right border
+    border-bottom: 1px solid #333;  // Add bottom border instead
+  }
+}
