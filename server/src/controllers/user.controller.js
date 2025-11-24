@@ -4,11 +4,10 @@ import { User } from "../models/user.model.js";
 import {
     deleteFromCloudinary,
     uploadOnCloudinary,
-} from "../utils/cloudinary.js";
+} from "../config/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import fs from "fs";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 
 function unlinkPath(avatarLocalPath, coverImageLocalPath) {
     if (avatarLocalPath) fs.unlinkSync(avatarLocalPath);
@@ -35,36 +34,31 @@ const generateAccessandRefreshTokens = async (userId, val = 0) => {
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-    // get user details from frontend
-    // validation - not empty
-    // check if user already exists: username, email
-    // check for images, check for avatar
-    // upload them to cloudinary, avatar
-    // create user object - create entry in db
-    // remove password and refresh token field from response
-    // check for user creation
-    // return response
 
-    const { fullName, email, username, password } = req.body;
-    const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req?.files?.coverImage?.[0]?.path;
+    const { firstName, lastName, displayName, email, password } = req.body;
+    
 
-    if (
-        [fullName, email, username, password].some(
-            (field) => field?.trim() === ""
-        )
-    ) {
+    const avatarLocalPath = req.files?.avatar?.[0]?.path;
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+ 
+    console.log("Avatar Local Path:", avatarLocalPath);
+    console.log("Cover Image Local Path:", coverImageLocalPath);
+    console.log("Request Body:", req.body);
+
+    if (![firstName, lastName, displayName, email, password].every(fields => fields && fields.trim() !== "")) {
         unlinkPath(avatarLocalPath, coverImageLocalPath);
         throw new ApiError(400, "All fields are required");
     }
 
+    const displayNameLower = displayName.toLowerCase();
     const existedUser = await User.findOne({
-        $or: [{ username }, { email }],
-    });
+    $or: [{ "profile.displayName": displayNameLower }, { email }],
+});
+
 
     if (existedUser) {
         unlinkPath(avatarLocalPath, coverImageLocalPath);
-        throw new ApiError(409, "User with email or username already exists");
+        throw new ApiError(409, "User with display name or email already exists");
     }
 
     if (!avatarLocalPath) {
@@ -73,55 +67,46 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    const coverImage = coverImageLocalPath 
+        ? await uploadOnCloudinary(coverImageLocalPath)
+        : null;
 
     if (!avatar) {
         throw new ApiError(400, "Avatar file is required");
     }
 
     const user = await User.create({
-        fullName,
-        avatar: avatar.secure_url,
-        coverImage: coverImage?.secure_url || "",
         email,
-        password,
-        username: username.toLowerCase(),
+        password, 
+        profile: {
+            firstName: firstName.toLowerCase(),
+            lastName: lastName.toLowerCase(),
+            displayName: displayName.toLowerCase(),
+            avatar: avatar.secure_url,
+            coverImage: coverImage?.secure_url || "",
+        },
     });
 
-    const createdUser = await User.findById(user._id).select(
-        "-password -refreshToken"
+    const createdUser = await User.findById(user._id)
+        .select("-password -refreshToken");
+
+    return res.status(201).json(
+        new ApiResponse(201, createdUser, "User registered successfully")
     );
 
-    if (!createdUser) {
-        throw new ApiError(
-            500,
-            "Something went wrong while registering the user"
-        );
-    }
-
-    return res
-        .status(201)
-        .json(
-            new ApiResponse(200, createdUser, "User registered successfully")
-        );
 });
 
+
 const loginUser = asyncHandler(async (req, res) => {
-    // req body -> data
-    // username or email
-    // find the user
-    // password check
-    // access and refresh token
-    // send cookie
 
-    const { email, username, password } = req.body;
+    const { email, displayName, password } = req.body;
 
-    if (!username && !email) {
-        throw new ApiError(400, "username or email is required");
+    if (!displayName && !email) {
+        throw new ApiError(400, "displayName or email is required");
     }
 
     const user = await User.findOne({
-        $or: [{ username }, { email }],
+        $and: [{ "profile.displayName": displayName.toLowerCase() }, { email }],
     });
 
     if (!user) {
@@ -233,7 +218,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newPassword } = req.body;
+    const { oldPassword, newPassword,confirmPassword } = req.body;
+
+    if (newPassword !== confirmPassword) {
+        throw new ApiError(400, "Passwords do not match");
+    }
 
     const user = await User.findById(req.user?._id);
 
@@ -259,16 +248,17 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { fullName, email, username, description } = req.body;
+    const { firstName,lastName,displayName, email, bio } = req.body;
 
-    if (!fullName && !email && !username && !description) {
+    if (!firstName && !lastName && !displayName && !email && !bio) {
         throw new ApiError(400, "At least one field is required");
     }
+    const displayNameLower = displayName?.toLowerCase();
 
-    if (username) {
-        const isExist = await User.find({ username });
+    if (displayNameLower) {
+        const isExist = await User.find({ displayName: displayNameLower });
         if (isExist?.length > 0) {
-            throw new ApiError(409, "Username not available");
+            throw new ApiError(409, "Display name not available");
         }
     }
 
@@ -276,10 +266,14 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         req.user?._id,
         {
             $set: {
-                fullName: fullName || req.user.fullName,
-                email: email || req.user.email,
-                username: username || req.user.username,
-                description: description || req.user.description,
+                profile: {
+                    lastName: lastName || req.user.lastName,
+                    displayName: displayNameLower || req.user.displayName,
+                    email: email || req.user.email,
+                    bio: bio || req.user.bio,
+                    firstName: firstName || req.user.firstName,
+                }
+                
             },
         },
         {
@@ -333,6 +327,45 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+    const coverImageLocalPath = req.file?.path;
+
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "Cover image file is missing");
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    if (!coverImage.secure_url) {
+        throw new ApiError(400, "Error while uploading the cover image");
+    }
+
+    const coverImageUrl = req.user?.coverImage;
+    const regex = /\/([^/]+)\.[^.]+$/;
+    const match = coverImageUrl.match(regex);
+
+    if (!match) {
+        throw new ApiError(400, "Couldn't find Public ID of old cover image");
+    }
+
+    const publicId = match[1];
+    await deleteFromCloudinary(publicId);
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                coverImage: coverImage.secure_url,
+            },
+        },
+        { new: true }
+    ).select("-password -refreshToken");
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "Cover image updated successfully"));
+});
+
 
 export {
     registerUser,
@@ -344,6 +377,4 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserProfile,
-    getWatchHistory,
 };

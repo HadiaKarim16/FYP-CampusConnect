@@ -1,8 +1,8 @@
+
 import mongoose from "mongoose";
 
 
-
-const userSchema = new Schema( {
+const userSchema = new mongoose.Schema( {
 		
     email: {
         type: String,
@@ -71,7 +71,7 @@ const userSchema = new Schema( {
         },
 
     },
-    avatarUrl: {
+    avatar: {
         type: String, //cloudinary url
         required: true,
     },
@@ -81,7 +81,7 @@ const userSchema = new Schema( {
     bio: {
         type:String,
         maxlength: 300,
-        default: '',
+        default: "",
         trim: true,
     },
 
@@ -105,7 +105,7 @@ const userSchema = new Schema( {
     },
 
     department: {
-        tpye: String,
+        type: String,
         default: '',
         trim: true,
     },
@@ -119,9 +119,9 @@ const userSchema = new Schema( {
     },
 
     interests: [
-        
-        { tpye : String}
-    ], 
+
+        { type : String }
+    ],
 
     socialLinks: [
     { 
@@ -150,7 +150,7 @@ const userSchema = new Schema( {
   },
   { timestamps: true });
 
-UserSchema.index({ campusId: 1, roles: 1 });
+userSchema.index({ campusId: 1, roles: 1 });
 
 
 

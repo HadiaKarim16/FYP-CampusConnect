@@ -5,8 +5,6 @@ import { checkUser } from "../middlewares/openAuth.middleware.js";
 import {
     changeCurrentPassword,
     getCurrentUser,
-    getUserChannelProfile,
-    getWatchHistory,
     loginUser,
     logOutUser,
     refreshAccessToken,
@@ -22,6 +20,7 @@ const router = Router();
 router.route("/register").post(
     upload.fields([
         { name: "avatar", maxCount: 1 },
+        { name: "coverImage", maxCount: 1 },
     ]),
     registerUser
 );
@@ -41,8 +40,5 @@ router
 router
     .route("/cover-image")
     .patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
-
-router.route("/c/:username").get(checkUser, getUserChannelProfile);
-router.route("/history").get(verifyJWT, getWatchHistory);
 
 export default router;
