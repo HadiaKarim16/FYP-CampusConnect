@@ -4,8 +4,9 @@ import { StrictMode } from "react";
 // Import createRoot to render the React app
 import { createRoot } from "react-dom/client";
 
-// Import the ChatApp component (make sure it's exported as ChatApp)
-import ChatApp from "./components/chat/ChatApp";
+// Import the ChatLayout component (make sure it's exported as ChatLayout)
+import ChatLayout from "./components/chat/ChatLayout";
+
 
 // Import global styles
 import "./index.css";
@@ -16,6 +17,6 @@ import {CssBaseline} from '@mui/material';
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <CssBaseline/>
-    <ChatApp />
+    <ChatLayout/>
   </StrictMode>
 );
