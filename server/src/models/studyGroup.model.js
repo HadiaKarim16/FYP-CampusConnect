@@ -21,12 +21,6 @@ const studyGroupSchema = new Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Chat' 
    },
-  noteId: [
-    { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Note' 
-    }
-  ],
    groupMembers: [
      {
        memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -51,6 +45,6 @@ const studyGroupSchema = new Schema({
     timestamps:true
 });
 
-studyGroupSchema.index({ _id: 1 });
-studyGroupSchema.index({ _id: 1, 'groupMembers.userId': 1 }, { unique: true });
+// studyGroupSchema.index({ _id: 1 });
+// studyGroupSchema.index({ _id: 1, 'groupMembers.userId': 1 }, { unique: true });
 export const StudyGroup = mongoose.model('StudyGroup', studyGroupSchema);
