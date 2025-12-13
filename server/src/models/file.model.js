@@ -26,10 +26,10 @@ const fileSchema = new Schema({
     timestamps: true
 });
 
-fileSchema.index({ userId: 1 });
-fileSchema.index({ fileName: 1 });
-fileSchema.index({ fileType: 1 });
-fileSchema.index({ uploadedAt: -1 });
-fileSchema.index({ fileSize: 1 });
+// fileSchema.index({ userId: 1 });
+// fileSchema.index({ fileName: 1 });
+// fileSchema.index({ fileType: 1 });
+// fileSchema.index({ uploadedAt: -1 });
+// fileSchema.index({ fileSize: 1 });
 export const File = mongoose.model('File', fileSchema);
 

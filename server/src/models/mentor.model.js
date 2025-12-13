@@ -59,8 +59,8 @@ const mentorSchema= new Schema({
 
 },{timestamps:true});
 
-mentorSchema.index({ userId: 1 });
-mentorSchema.index({ _id: 1, expertise: 1 }, { unique: true });
-mentorSchema.index({ _id: 1, 'booking.userId': 1, startAt: 1 });
+// mentorSchema.index({ userId: 1 });
+// mentorSchema.index({ _id: 1, expertise: 1 }, { unique: true });
+// mentorSchema.index({ _id: 1, 'booking.userId': 1, startAt: 1 });
 
 const Mentor = mongoose.model('Mentor', mentorSchema);

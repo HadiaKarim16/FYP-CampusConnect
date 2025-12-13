@@ -94,11 +94,11 @@ const eventSchema = new Schema({
  
 {timestamps: true});
 
-eventSchema.index({ campusId: 1, startAt: 1 });
-eventSchema.index({ societyId: 1, startAt: 1 });
-eventSchema.index({ _id: 1, startAt: 1 });
-eventSchema.index({ _id: 1, registeredStudents: 1 });
-eventSchema.index({ title: 'text', description: 'text' });
-eventSchema.index({ isCanceled: 1 }, { partialFilterExpression: { isCanceled: { $eq: false } } });
+// eventSchema.index({ campusId: 1, startAt: 1 });
+// eventSchema.index({ societyId: 1, startAt: 1 });
+// eventSchema.index({ _id: 1, startAt: 1 });
+// eventSchema.index({ _id: 1, registeredStudents: 1 });
+// eventSchema.index({ title: 'text', description: 'text' });
+// eventSchema.index({ isCanceled: 1 }, { partialFilterExpression: { isCanceled: { $eq: false } } });
 
 export const Event = mongose.model("Event", eventSchema);

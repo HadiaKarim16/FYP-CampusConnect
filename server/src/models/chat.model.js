@@ -4,7 +4,7 @@ const chatSchema = new Schema({
   
   type: { 
     type: String, 
-    enum: ['dm','group','society','studygroup'], 
+    enum: ['dm','society','studygroup'], 
     default: 'dm' 
 },
 
@@ -36,7 +36,6 @@ const chatSchema = new Schema({
 
 
   lastMessageAt: Date,
-  meta: Schema.Types.Mixed
 }, { timestamps: true });
 
 export const ChatMessage = mongoose.model('ChatMessage', chatSchema);
