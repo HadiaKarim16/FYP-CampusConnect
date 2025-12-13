@@ -257,7 +257,11 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
  
     
     if (displayNameLower && displayNameLower !== req.user.profile.displayName) {
-        const isExist = await User.findOne({ "profile.displayName": displayNameLower });
+        const isExist = await User.findOne(
+            { 
+                "profile.displayName": displayNameLower 
+            }
+        );
         if (isExist) {
             throw new ApiError(409, "Display name not available");
         }
