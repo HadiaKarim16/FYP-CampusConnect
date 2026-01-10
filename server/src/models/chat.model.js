@@ -27,10 +27,6 @@ const chatSchema = new Schema(
       ref: 'User',
       required: true,
     },
-     isGroupChat: {
-      type: Boolean,
-      default: false,
-    },
     members: [
       {
         userId: {

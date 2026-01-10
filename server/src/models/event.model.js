@@ -31,12 +31,12 @@ const eventSchema = new Schema({
     startAt: { type: Date, required: true },
     endAt:{ type: Date, required: true },
 
-    societyId: { 
-       tpye: Schema.Types.ObjectId,
+    society: { 
+       type: Schema.Types.ObjectId,
        ref: 'Society' 
     },
 
-    campusId: { 
+    campus: { 
         type: Schema.Types.ObjectId, 
         ref: 'Campus'
     },
