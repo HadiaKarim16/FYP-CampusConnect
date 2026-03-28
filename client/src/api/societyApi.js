@@ -79,9 +79,9 @@ export const leaveSociety = async (societyId) => {
 };
 
 // Get society members
-export const getSocietyMembers = async (societyId) => {
+export const getSocietyMembers = async (societyId, params = {}) => {
   try {
-    const response = await api.get(`/societies/${societyId}/members`);
+    const response = await api.get(`/societies/${societyId}/members`, { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -109,16 +109,10 @@ export const getUserSocieties = async (userId) => {
 };
 
 // Get member requests (society head only)
-// Uses /members endpoint and filters for pending status since /member-requests doesn't exist
 export const getMemberRequests = async (societyId) => {
   try {
-    const response = await api.get(`/societies/${societyId}/members`);
-    const allMembers = response.data?.data || response.data || [];
-    // Filter to only pending members
-    const pending = Array.isArray(allMembers)
-      ? allMembers.filter((m) => m.status === 'pending')
-      : [];
-    return { ...response.data, data: pending };
+    const response = await api.get(`/societies/${societyId}/member-requests`);
+    return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
