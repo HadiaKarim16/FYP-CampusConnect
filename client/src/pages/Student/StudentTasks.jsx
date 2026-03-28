@@ -1,256 +1,222 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
+  fetchTasks,
+  createTask,
+  updateTaskStatus,
+  deleteTask,
   selectAllTasks,
-  setTasks,
-  addTask,
-  toggleTaskComplete as toggleTask,
-  deleteTask as removeTask,
-} from "../../redux/slices/taskSlice";
-import TaskProgressBar from "../../components/common/TaskProgressBar";
-import AddTaskForm from "../../components/common/AddTaskForm";
-import TaskFilters from "../../components/common/TaskFilters";
-import TaskItem from "../../components/common/TaskItem";
-import Card from "../../components/common/Card";
-import EmptyState from "../../components/common/EmptyState";
-import Avatar from "../../components/common/Avatar";
-import IconButton from "../../components/common/IconButton";
-import PageHeader from "../../components/common/PageHeader";
+  selectTaskActionLoading,
+} from "../../redux/slices/tasksSlice";
+
+function TaskColumn({ title, statusId, tasks, onStatusChange, onDelete }) {
+  return (
+    <div className="flex flex-col flex-1 bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden min-h-[400px]">
+      <div className="bg-[#1f2428] px-4 py-3 border-b border-[#30363d] flex justify-between items-center">
+        <h3 className="font-bold text-white tracking-wide uppercase text-sm">{title}</h3>
+        <span className="bg-[#30363d] text-[#c9d1d9] text-xs px-2 py-0.5 rounded-full font-bold">
+          {tasks.length}
+        </span>
+      </div>
+      <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto">
+        {tasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-[#8b949e] opacity-60 my-auto py-10">
+            <span className="material-symbols-outlined text-4xl mb-2">check_box_outline_blank</span>
+            <p className="text-sm">Empty</p>
+          </div>
+        ) : (
+          tasks.map(task => (
+            <TaskCard key={task._id} task={task} onStatusChange={onStatusChange} onDelete={onDelete} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TaskCard({ task, onStatusChange, onDelete }) {
+  const isLoading = useSelector(state => selectTaskActionLoading(state, task._id));
+  
+  const nextStatusMap = {
+    'pending': 'in_progress',
+    'in_progress': 'done',
+    'done': 'past',
+    'past': 'pending' // Allow restoring past tasks to pending
+  };
+
+  const statusColors = {
+    'pending': 'border-[#d29922]',
+    'in_progress': 'border-[#2f81f7]',
+    'done': 'border-[#238636]',
+    'past': 'border-[#8b949e]'
+  };
+
+  const nextStatusLabel = {
+    'in_progress': 'Move to in progress',
+    'done': 'Move to done',
+    'past': 'Move to past task',
+    'pending': 'Restore to pending',
+  };
+
+  return (
+    <div className={`bg-[#0d1117] border-l-4 ${statusColors[task.status] || 'border-[#8b949e]'} border-[#30363d] p-3 rounded shadow hover:border-[#8b949e] transition-colors relative group opacity-${isLoading ? '50' : '100'}`}>
+      <div className="flex justify-between items-start gap-2 mb-2">
+        <h4 className={`text-sm font-semibold leading-tight pr-6 ${task.status === 'past' ? 'text-[#8b949e] line-through' : 'text-white'}`}>
+          {task.title}
+        </h4>
+        <button 
+          onClick={() => onDelete(task._id)}
+          disabled={isLoading}
+          className="text-[#8b949e] hover:text-[#f85149] transition-colors absolute top-3 right-3 opacity-0 group-hover:opacity-100"
+          title="Delete task"
+        >
+          <span className="material-symbols-outlined text-[18px]">delete</span>
+        </button>
+      </div>
+      
+      <div className="flex justify-between items-end mt-4 text-xs font-medium">
+        <div className="text-[#8b949e] flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px]">flag</span>
+          <span className="capitalize">{task.priority}</span>
+        </div>
+        
+        <button 
+          onClick={() => onStatusChange(task._id, nextStatusMap[task.status])}
+          disabled={isLoading}
+          className="bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] px-2 py-1 flex items-center gap-1.5 rounded border border-[#30363d] transition-colors"
+        >
+          <span>{nextStatusLabel[nextStatusMap[task.status]]}</span>
+          <span className="material-symbols-outlined text-[14px]">
+            {task.status === 'past' ? 'restore' : 'arrow_forward'}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentTasks() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
+  
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [showPastTasks, setShowPastTasks] = useState(false);
+  
+  const status = useSelector(state => state.tasks.status);
   const tasks = useSelector(selectAllTasks);
 
   useEffect(() => {
-    if (tasks.length === 0) {
-      const mockTasks = [
-    {
-      id: 1,
-      text: "Complete AI assignment",
-      completed: false,
-      priority: "high",
-      dueDate: "2026-02-15",
-      category: "Academic",
-    },
-    {
-      id: 2,
-      text: "Prepare for debate tournament",
-      completed: false,
-      priority: "high",
-      dueDate: "2026-02-20",
-      category: "Society",
-    },
-    {
-      id: 3,
-      text: "Review mentorship application",
-      completed: true,
-      priority: "medium",
-      dueDate: "2026-02-10",
-      category: "Mentoring",
-    },
-    {
-      id: 4,
-      text: "Submit project proposal",
-      completed: false,
-      priority: "high",
-      dueDate: "2026-02-18",
-      category: "Academic",
-    },
-    {
-      id: 5,
-      text: "Attend IEEE meeting",
-      completed: false,
-      priority: "medium",
-      dueDate: "2026-02-16",
-      category: "Society",
-    },
-      ];
-      dispatch(setTasks(mockTasks));
-    }
-  }, [dispatch, tasks.length]);
+    dispatch(fetchTasks());
+  }, [dispatch]);
 
-  const [newTask, setNewTask] = useState("");
-  const [filterCategory, setFilterCategory] = useState("all");
-  const [filterPriority, setFilterPriority] = useState("all");
-
-  const handleAddTask = () => {
-    if (newTask.trim()) {
-      dispatch(
-        addTask({
-          id: Date.now(),
-          text: newTask,
-          completed: false,
-          priority: "medium",
-          dueDate: new Date().toISOString().split("T")[0],
-          category: "General",
-        }),
-      );
-      setNewTask("");
-    }
+  const handleCreate = (e) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+    dispatch(createTask({ title: newTaskTitle, priority: 'medium' }));
+    setNewTaskTitle("");
   };
 
-  const toggleTaskComplete = (id) => {
-    dispatch(toggleTask(id));
-  };
-
-  const deleteTask = (id) => {
-    dispatch(removeTask(id));
-  };
-
-  const filteredTasks = useMemo(
-    () =>
-      tasks.filter((task) => {
-        const categoryMatch =
-          filterCategory === "all" || task.category === filterCategory;
-        const priorityMatch =
-          filterPriority === "all" || task.priority === filterPriority;
-        return categoryMatch && priorityMatch;
-      }),
-    [tasks, filterCategory, filterPriority]
-  );
-
-  const completedCount = useMemo(
-    () => tasks.filter((t) => t.completed).length,
-    [tasks]
-  );
+  const pendingTasks = tasks.filter(t => t.status === 'pending');
+  const inProgressTasks = tasks.filter(t => t.status === 'in_progress');
+  const doneTasks = tasks.filter(t => t.status === 'done');
+  const pastTasks = tasks.filter(t => t.status === 'past');
 
   return (
     <div className="w-full bg-[#0d1117] text-[#c9d1d9] min-h-screen">
-      {/* Header */}
-      <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#30363d] px-6 sm:px-10 lg:px-20 py-3 sticky top-0 bg-[#0d1117]/80 backdrop-blur-sm z-50">
-        <div className="flex items-center gap-8">
-          <button
-            onClick={() => navigate("/student/dashboard")}
-            className="text-white hover:text-[#238636] transition-colors"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <div className="flex items-center gap-4 text-white">
-            <svg
-              className="size-6 text-[#238636]"
-              fill="none"
-              viewBox="0 0 48 48"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M6 6H42L36 24L42 42H6L12 24L6 6Z"
-                fill="currentColor"
-              ></path>
-            </svg>
-            <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-              CampusConnect
-            </h2>
-          </div>
-        </div>
-
-        <div className="flex flex-1 justify-end gap-2 sm:gap-4 md:gap-8 items-center">
-          <div className="hidden lg:flex items-center gap-9">
-            <button
-              onClick={() => navigate("/student/dashboard")}
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-            >
-              Dashboard
-            </button>
-            <a
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-              href="/student/tasks"
-            >
-              Tasks
-            </a>
-            <a
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-              href="/student/events"
-            >
-              Events
-            </a>
-            <a
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-              href="/student/societies"
-            >
-              Societies
-            </a>
-          </div>
-          <div className="flex gap-2">
-            <IconButton
-              icon="notifications"
-              onClick={() => navigate("/student/notifications")}
-              title="Notifications"
-              variant="default"
-            />
-          </div>
-          <Avatar
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnPK_XOPkn_xRuJjkJ28yxLKxQIg3E7DdzwpZWAUgeAqsJeg1D0pmo858Xb6Fnx4adCLic40zRTqLsOgB5E6boNvQW2Wu0w08lQ8gAHHahDiL6kDHGnwyILKuDNZcMSbweDjM8qBupJvllgQTJWoxWH6d86ONwwFSFxfNP61cxoz4janxWpttRZcAk3RL0x_QOxMM51XYQYX2b552BqA-0bjn5bBeUsZ_NyXsgVxC2-H7bNrQwoisuCAVm2GoW5vct4koHXzgMiuI"
-            size="10"
-            hover={true}
-            borderColor="[#238636]"
-          />
-        </div>
-      </header>
 
       {/* Main Content */}
-      <main className="px-4 sm:px-10 lg:px-20 flex flex-1 justify-center py-5 md:py-10">
-        <div className="layout-content-container flex flex-col w-full max-w-6xl">
-          <PageHeader
-            title="My Tasks"
-            subtitle="Manage your assignments and deadlines"
-            icon="task_alt"
-            showBack={false}
-          />
+      <main className="px-4 sm:px-10 lg:px-20 py-5 md:py-10 max-w-[1400px] mx-auto">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">My Tasks</h1>
+            <p className="text-[#8b949e]">Keep track of assignments and events.</p>
+          </div>
 
-          {/* Progress Bar */}
-          <TaskProgressBar
-            completedCount={completedCount}
-            totalCount={tasks.length}
-            className="mb-8"
-          />
+          <form onSubmit={handleCreate} className="flex gap-2 w-full md:w-auto">
+            <input 
+              type="text" 
+              placeholder="What needs to be done?" 
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              className="bg-[#161b22] border border-[#30363d] text-white text-sm rounded-lg focus:ring-[#238636] focus:border-[#238636] block w-full md:w-64 p-2.5 outline-none transition-colors"
+            />
+            <button 
+              type="submit"
+              disabled={!newTaskTitle.trim() || status === 'loading'}
+              className="bg-[#238636] hover:bg-[#2ea043] text-white font-bold rounded-lg text-sm px-5 py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              Add
+            </button>
+          </form>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-            {/* Add Task Form */}
-            <div className="lg:col-span-1">
-              <AddTaskForm
-                newTask={newTask}
-                onTaskChange={setNewTask}
-                onAddTask={handleAddTask}
+        {status === 'loading' ? (
+          <div className="animate-pulse flex gap-6 h-[500px]">
+            <div className="flex-1 bg-[#161b22] rounded-xl border border-[#30363d]"></div>
+            <div className="flex-1 bg-[#161b22] rounded-xl border border-[#30363d]"></div>
+            <div className="flex-1 bg-[#161b22] rounded-xl border border-[#30363d]"></div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-8">
+            {/* Active Kanban Board */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              <TaskColumn 
+                title="Pending" 
+                statusId="pending" 
+                tasks={pendingTasks} 
+                onStatusChange={(id, target) => dispatch(updateTaskStatus({taskId: id, status: target}))}
+                onDelete={(id) => dispatch(deleteTask(id))}
+              />
+              <TaskColumn 
+                title="In Progress" 
+                statusId="in_progress" 
+                tasks={inProgressTasks} 
+                onStatusChange={(id, target) => dispatch(updateTaskStatus({taskId: id, status: target}))}
+                onDelete={(id) => dispatch(deleteTask(id))}
+              />
+              <TaskColumn 
+                title="Done" 
+                statusId="done" 
+                tasks={doneTasks} 
+                onStatusChange={(id, target) => dispatch(updateTaskStatus({taskId: id, status: target}))}
+                onDelete={(id) => dispatch(deleteTask(id))}
               />
             </div>
 
-            {/* Filters */}
-            <div className="lg:col-span-3">
-              <TaskFilters
-                filterCategory={filterCategory}
-                filterPriority={filterPriority}
-                onCategoryChange={setFilterCategory}
-                onPriorityChange={setFilterPriority}
-                className="mb-6"
-              />
-
-              {/* Tasks List */}
-              <div className="flex flex-col gap-3">
-                {filteredTasks.length === 0 ? (
-                  <Card padding="p-12">
-                    <EmptyState
-                      icon="task_alt"
-                      title="No tasks found"
-                      description="Try adjusting your filters or add a new task"
-                    />
-                  </Card>
-                ) : (
-                  filteredTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      onToggleComplete={toggleTaskComplete}
-                      onDelete={deleteTask}
-                    />
-                  ))
+            {/* Past Tasks Archive */}
+            {pastTasks.length > 0 && (
+              <div className="mt-4 pt-6 border-t border-[#30363d]/50">
+                <button 
+                  onClick={() => setShowPastTasks(!showPastTasks)}
+                  className="flex items-center gap-2 text-[#8b949e] hover:text-white transition-colors font-semibold text-sm bg-[#161b22] border border-[#30363d] px-4 py-2 rounded-lg"
+                >
+                  <span className="material-symbols-outlined text-[18px] transition-transform duration-200" style={{ transform: showPastTasks ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    expand_more
+                  </span>
+                  {showPastTasks ? 'Hide Past Tasks' : 'Show Past Tasks'} 
+                  <span className="bg-[#30363d] text-white px-2 py-0.5 rounded-full text-xs ml-1 font-bold">
+                    {pastTasks.length}
+                  </span>
+                </button>
+                
+                {showPastTasks && (
+                  <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-fade-in">
+                    {pastTasks.map(task => (
+                      <TaskCard 
+                        key={task._id} 
+                        task={task} 
+                        onStatusChange={(id, target) => dispatch(updateTaskStatus({taskId: id, status: target}))}
+                        onDelete={(id) => dispatch(deleteTask(id))}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

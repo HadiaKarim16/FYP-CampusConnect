@@ -1,26 +1,9 @@
-/**
- * Socket Middleware
- * 
- * Handles WebSocket/Socket.IO events and syncs with Redux
- * Listens for socket events and dispatches corresponding Redux actions
- * 
- * Usage:
- * 1. Socket events automatically dispatch corresponding Redux actions
- * 2. Format: socket message "user-update" -> dispatch action "socket/userUpdate"
- * 
- * Supported events:
- * - connection: User connected
- * - user-update: User profile updated
- * - notification: New notification
- * - message: New chat message
- * - event-update: Event information changed
- * - society-update: Society information changed
- */
+import { fetchSessionsThunk } from '../slices/mentoringSlice';
 
 let socketInstance = null;
 
 const socketMiddleware = store => next => action => {
-  // Store socket instance when it's provided
+  // Store socket instance when it's provided, usually via an auth initialization action
   if (action.payload && action.payload.socket) {
     socketInstance = action.payload.socket;
     
@@ -34,43 +17,70 @@ const socketMiddleware = store => next => action => {
 };
 
 /**
- * Set up listeners for common socket events
- * These should map to your Redux actions
+ * Set up listeners for backend socket events
  */
 function setupSocketListeners(store, socket) {
   // Connection events
-  socket.on('connected', (data) => {
+  socket.on('connect', () => {
     store.dispatch({
       type: 'socket/connected',
-      payload: data,
+    });
+  });
+
+  socket.on('disconnect', () => {
+    store.dispatch({
+      type: 'socket/disconnected',
     });
   });
 
   // User events
   socket.on('user-update', (data) => {
     store.dispatch({
-      type: 'user/updateUser',
+      type: 'auth/updateUser',
       payload: data,
     });
   });
 
-  // Notification events
-  socket.on('notification', (data) => {
+  // ─── Notification Events ───
+  socket.on('notification:new', (data) => {
     store.dispatch({
-      type: 'notifications/addNotification',
+      type: 'notifications/receiveNotification',
       payload: data,
     });
   });
 
-  // Chat message events
-  socket.on('message', (data) => {
+  socket.on('notification:sync', (data) => {
+    // Fired for unread counts
     store.dispatch({
-      type: 'chat/newMessage',
+      type: 'notifications/syncUnreadCount',
       payload: data,
     });
   });
 
-  // Event updates
+  // ─── Chat Events ───
+  socket.on('message:new', (data) => {
+    store.dispatch({
+      type: 'messages/receiveMessage',
+      payload: { chatId: data.chat, message: data },
+    });
+  });
+  
+  socket.on('message:reaction:update', (data) => {
+    store.dispatch({
+      type: 'messages/updateReaction',
+      payload: data,
+    });
+  });
+
+  socket.on('chat:read', (data) => {
+    // Optionally implemented in slice
+    store.dispatch({
+      type: 'messages/markChatReadLocally',
+      payload: data,
+    });
+  });
+
+  // ─── Domain Events (Events & Societies) ───
   socket.on('event-update', (data) => {
     store.dispatch({
       type: 'events/updateEvent',
@@ -78,7 +88,6 @@ function setupSocketListeners(store, socket) {
     });
   });
 
-  // Society updates
   socket.on('society-update', (data) => {
     store.dispatch({
       type: 'societies/updateSociety',
@@ -86,19 +95,19 @@ function setupSocketListeners(store, socket) {
     });
   });
 
+  // ─── Mentoring Events ───
+  socket.on('mentoring:session_update', (data) => {
+    console.log('[Socket] Mentoring update received:', data);
+    // Refresh sessions significantly safer than manual patching
+    store.dispatch(fetchSessionsThunk());
+  });
+
   // Error handling
   socket.on('error', (error) => {
-    console.error('Socket error:', error);
+    console.error('[Socket] Server Error:', error);
     store.dispatch({
       type: 'socket/error',
       payload: error,
-    });
-  });
-
-  // Disconnection
-  socket.on('disconnected', () => {
-    store.dispatch({
-      type: 'socket/disconnected',
     });
   });
 }

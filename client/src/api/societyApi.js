@@ -27,7 +27,9 @@ export const getSocietyById = async (societyId) => {
 // Create new society
 export const createSociety = async (societyData) => {
   try {
-    const response = await api.post('/societies', societyData);
+    const response = await api.post('/societies/create-society', societyData, {
+      headers: societyData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -37,7 +39,9 @@ export const createSociety = async (societyData) => {
 // Update society
 export const updateSociety = async (societyId, societyData) => {
   try {
-    const response = await api.patch(`/societies/${societyId}`, societyData);
+    const response = await api.patch(`/societies/update/${societyId}`, societyData, {
+      headers: societyData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -47,7 +51,7 @@ export const updateSociety = async (societyId, societyData) => {
 // Delete society
 export const deleteSociety = async (societyId) => {
   try {
-    const response = await api.delete(`/societies/${societyId}`);
+    const response = await api.delete(`/societies/delete/${societyId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -67,7 +71,7 @@ export const joinSociety = async (societyId) => {
 // Leave society
 export const leaveSociety = async (societyId) => {
   try {
-    const response = await api.delete(`/societies/${societyId}/leave`);
+    const response = await api.post(`/societies/${societyId}/leave`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -75,9 +79,9 @@ export const leaveSociety = async (societyId) => {
 };
 
 // Get society members
-export const getSocietyMembers = async (societyId) => {
+export const getSocietyMembers = async (societyId, params = {}) => {
   try {
-    const response = await api.get(`/societies/${societyId}/members`);
+    const response = await api.get(`/societies/${societyId}/members`, { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -134,10 +138,30 @@ export const rejectMemberRequest = async (societyId, requestId) => {
   }
 };
 
+// Approve society member (real backend endpoint)
+export const approveSocietyMember = async (societyId, memberId) => {
+  try {
+    const response = await api.patch(`/societies/${societyId}/members/${memberId}/approve`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Reject society member (real backend endpoint)
+export const rejectSocietyMember = async (societyId, memberId) => {
+  try {
+    const response = await api.patch(`/societies/${societyId}/members/${memberId}/reject`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // Get society analytics (society head only)
 export const getSocietyAnalytics = async (societyId) => {
   try {
-    const response = await api.get(`/societies/${societyId}/analytics`);
+    const response = await api.get(`/societies/${societyId}/stats`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

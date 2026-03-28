@@ -1,88 +1,78 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { selectAllNotifications, selectUnreadCount, setNotifications, markAsRead, markAllAsRead, removeNotification } from "../../redux/slices/notificationSlice";
+import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification as deleteNotificationApi } from "../../api/notificationApi";
 import MentorTopBar from "../../components/mentoring/MentorTopBar";
+import SharedFooter from "../../components/common/SharedFooter";
 
 export default function MentorNotifications() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const notifications = useSelector(selectAllNotifications);
-  const unreadCount = useSelector(selectUnreadCount);
-  
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getUserNotifications();
+      const items = res.data?.docs || res.data || [];
+      setNotifications(Array.isArray(items) ? items : []);
+    } catch (err) {
+      setError(err?.message || "Failed to load notifications");
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (notifications.length === 0) {
-      dispatch(setNotifications([
-        {
-          id: 1,
-          type: "session_booked",
-          title: "New Session Booked",
-          message:
-            "John Doe has booked a session with you on Feb 20, 2024 at 10:00 AM",
-          timestamp: "2024-02-15 10:30 AM",
-          read: false,
-          icon: "calendar_add_on",
-          color: "#1dc964",
-        },
-        {
-          id: 2,
-          type: "rating_received",
-          title: "New Rating Received",
-          message:
-            "Jane Smith left you a 5-star rating for your React Advanced Patterns session",
-          timestamp: "2024-02-14 3:45 PM",
-          read: false,
-          icon: "star",
-          color: "#fbbf24",
-        },
-        {
-          id: 3,
-          type: "message",
-          title: "New Message",
-          message:
-            'Alex Johnson sent you a message: "Thanks for the great session!"',
-          timestamp: "2024-02-13 2:15 PM",
-          read: false,
-          icon: "mail",
-          color: "#3b82f6",
-        },
-        {
-          id: 4,
-          type: "payment",
-          title: "Payment Received",
-          message:
-            "You received $150 for your completed session with Sarah Williams",
-          timestamp: "2024-02-12 11:00 AM",
-          read: true,
-          icon: "attach_money",
-          color: "#10b981",
-        },
-        {
-          id: 5,
-          type: "feedback_pending",
-          title: "Feedback Pending",
-          message: "Please provide feedback for your session with Michael Chen",
-          timestamp: "2024-02-11 4:00 PM",
-          read: true,
-          icon: "rate_review",
-          color: "#f87171",
-        },
-      ]));
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  const handleMarkAsRead = async (id) => {
+    setActionLoading(id);
+    try {
+      await markNotificationAsRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n))
+      );
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    } finally {
+      setActionLoading(null);
     }
-  }, [dispatch, notifications.length]);
-
-  const handleMarkAsRead = (id) => {
-    dispatch(markAsRead(id));
   };
 
-  const handleMarkAllAsRead = () => {
-    dispatch(markAllAsRead());
+  const handleMarkAllAsRead = async () => {
+    setActionLoading("all");
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, read: true, readAt: new Date().toISOString() }))
+      );
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDelete = (id) => {
-    dispatch(removeNotification(id));
+  const handleDelete = async (id) => {
+    setActionLoading(id);
+    try {
+      await deleteNotificationApi(id);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const filteredNotifications = useMemo(
@@ -93,13 +83,54 @@ export default function MentorNotifications() {
     [activeTab, notifications]
   );
 
+  const getNotificationIcon = (type) => {
+    const icons = {
+      session_booked: "calendar_add_on",
+      rating_received: "star",
+      message: "mail",
+      payment: "attach_money",
+      feedback_pending: "rate_review",
+      mentor_verified: "verified",
+      booking_confirmed: "event_available",
+      booking_cancelled: "event_busy",
+    };
+    return icons[type] || "notifications";
+  };
+
+  const getNotificationColor = (type) => {
+    const colors = {
+      session_booked: "#1dc964",
+      rating_received: "#fbbf24",
+      message: "#3b82f6",
+      payment: "#10b981",
+      feedback_pending: "#f87171",
+      mentor_verified: "#1dc964",
+      booking_confirmed: "#1dc964",
+      booking_cancelled: "#f87171",
+    };
+    return colors[type] || "#9eb7a9";
+  };
+
+  const formatTimestamp = (ts) => {
+    if (!ts) return "";
+    const date = new Date(ts);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col font-display text-[#c9d1d9] group/design-root overflow-x-hidden bg-[#112118]">
       <div className="layout-container flex h-full grow flex-col">
-        {/* TopNavBar */}
         <MentorTopBar backPath="/mentor/dashboard" />
 
-        {/* Main Content */}
         <main className="px-4 sm:px-6 lg:px-8 xl:px-10 flex flex-1 justify-center py-8">
           <div className="layout-content-container flex flex-col w-full max-w-4xl flex-1">
             {/* Page Heading */}
@@ -111,14 +142,17 @@ export default function MentorNotifications() {
                 {unreadCount > 0 && (
                   <button
                     onClick={handleMarkAllAsRead}
-                    className="text-[#1dc964] text-sm font-semibold hover:text-white transition-colors"
+                    disabled={actionLoading === "all"}
+                    className="text-[#1dc964] text-sm font-semibold hover:text-white transition-colors disabled:opacity-50"
                   >
-                    Mark all as read
+                    {actionLoading === "all" ? "Marking..." : "Mark all as read"}
                   </button>
                 )}
               </div>
               <p className="text-[#9eb7a9] text-base font-normal leading-normal">
-                {unreadCount > 0
+                {loading
+                  ? "Loading notifications..."
+                  : unreadCount > 0
                   ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
                   : "All notifications read"}
               </p>
@@ -135,7 +169,7 @@ export default function MentorNotifications() {
                 }`}
               >
                 <span className="material-symbols-outlined">list</span>
-                All Notifications
+                All ({notifications.length})
               </button>
               <button
                 onClick={() => setActiveTab("unread")}
@@ -145,89 +179,99 @@ export default function MentorNotifications() {
                     : "text-[#9eb7a9] hover:text-white"
                 }`}
               >
-                <span className="material-symbols-outlined">
-                  mark_email_unread
-                </span>
+                <span className="material-symbols-outlined">mark_email_unread</span>
                 Unread ({unreadCount})
               </button>
             </div>
 
-            {/* Notifications List */}
-            {filteredNotifications.length > 0 ? (
-              <div className="space-y-4">
-                {filteredNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`flex items-start gap-4 p-5 rounded-xl border transition-all ${
-                      notification.read
-                        ? "bg-[#161b22] border-[#30363d]"
-                        : "bg-[#1dc964]/10 border-[#1dc964]/50 hover:border-[#1dc964]"
-                    }`}
-                  >
-                    {/* Icon */}
-                    <div
-                      className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: `${notification.color}20` }}
-                    >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ color: notification.color }}
-                      >
-                        {notification.icon}
-                      </span>
-                    </div>
+            {error && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3
-                            className={`font-semibold ${notification.read ? "text-[#9eb7a9]" : "text-white"}`}
-                          >
-                            {notification.title}
-                          </h3>
-                          <p
-                            className={`text-sm mt-1 ${notification.read ? "text-[#9eb7a9]" : "text-[#c9d1d9]"}`}
-                          >
-                            {notification.message}
-                          </p>
-                          <p className="text-[#9eb7a9] text-xs mt-2">
-                            {notification.timestamp}
-                          </p>
+            {/* Loading State */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-16">
+                <div className="w-10 h-10 border-4 border-[#1dc964] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-[#9eb7a9]">Loading notifications...</p>
+              </div>
+            ) : filteredNotifications.length > 0 ? (
+              <div className="space-y-4">
+                {filteredNotifications.map((notification) => {
+                  const nId = notification._id || notification.id;
+                  const nType = notification.type || "message";
+                  const icon = getNotificationIcon(nType);
+                  const color = getNotificationColor(nType);
+
+                  return (
+                    <div
+                      key={nId}
+                      className={`flex items-start gap-4 p-5 rounded-xl border transition-all ${
+                        notification.read
+                          ? "bg-[#161b22] border-[#30363d]"
+                          : "bg-[#1dc964]/10 border-[#1dc964]/50 hover:border-[#1dc964]"
+                      }`}
+                    >
+                      <div
+                        className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: `${color}20` }}
+                      >
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ color }}
+                        >
+                          {icon}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h3
+                              className={`font-semibold ${notification.read ? "text-[#9eb7a9]" : "text-white"}`}
+                            >
+                              {notification.title || nType.replace(/_/g, " ")}
+                            </h3>
+                            <p
+                              className={`text-sm mt-1 ${notification.read ? "text-[#9eb7a9]" : "text-[#c9d1d9]"}`}
+                            >
+                              {notification.message || notification.body || ""}
+                            </p>
+                            <p className="text-[#9eb7a9] text-xs mt-2">
+                              {formatTimestamp(notification.createdAt || notification.timestamp)}
+                            </p>
+                          </div>
+
+                          {!notification.read && (
+                            <div className="flex-shrink-0 w-2 h-2 rounded-full bg-[#1dc964] mt-1"></div>
+                          )}
                         </div>
 
-                        {/* Unread Indicator */}
-                        {!notification.read && (
-                          <div className="flex-shrink-0 w-2 h-2 rounded-full bg-[#1dc964] mt-1"></div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2 mt-4">
-                        {!notification.read && (
+                        <div className="flex gap-2 mt-4">
+                          {!notification.read && (
+                            <button
+                              onClick={() => handleMarkAsRead(nId)}
+                              disabled={actionLoading === nId}
+                              className="text-xs text-[#1dc964] hover:text-white transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-sm">done</span>
+                              {actionLoading === nId ? "..." : "Mark as read"}
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleMarkAsRead(notification.id)}
-                            className="text-xs text-[#1dc964] hover:text-white transition-colors flex items-center gap-1"
+                            onClick={() => handleDelete(nId)}
+                            disabled={actionLoading === nId}
+                            className="text-xs text-[#9eb7a9] hover:text-red-400 transition-colors flex items-center gap-1 ml-auto disabled:opacity-50"
                           >
-                            <span className="material-symbols-outlined text-sm">
-                              done
-                            </span>
-                            Mark as read
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                            Delete
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(notification.id)}
-                          className="text-xs text-[#9eb7a9] hover:text-red-400 transition-colors flex items-center gap-1 ml-auto"
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            delete
-                          </span>
-                          Delete
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
@@ -246,6 +290,7 @@ export default function MentorNotifications() {
             )}
           </div>
         </main>
+        <SharedFooter />
       </div>
     </div>
   );

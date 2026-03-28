@@ -1,258 +1,204 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
-  selectAllSocieties,
-  setSocieties,
-} from "../../redux/slices/societySlice";
-import StatCard from "../../components/common/StatCard";
-import FilterButtons from "../../components/common/FilterButtons";
-import SocietyCard from "../../components/common/SocietyCard";
-import Card from "../../components/common/Card";
-import EmptyState from "../../components/studyGroups/EmptyState";
+  fetchSocieties,
+  joinSociety,
+  leaveSociety,
+  selectMySocieties,
+  selectDiscoverSocieties,
+  selectSocietyActionLoading,
+} from "../../redux/slices/societiesSlice";
+import { useModal, MODAL_TYPES } from "../../contexts/ModalContext";
 import Avatar from "../../components/common/Avatar";
+
+// --- SUBCOMPONENTS ---
+
+function SocietyActionBlock({ society, tab }) {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { openModal } = useModal();
+  const isLoading = useSelector((state) => selectSocietyActionLoading(state, society._id));
+
+  return (
+    <div className="flex gap-2 w-full mt-4">
+      {tab === "my" ? (
+        <>
+          <button
+            onClick={() => navigate(`/student/societies/${society._id}`)}
+            disabled={isLoading}
+            className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white py-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">visibility</span>
+            View Details
+          </button>
+          <button
+            onClick={() => openModal(MODAL_TYPES.LEAVE_SOCIETY, {
+              societyId: society._id,
+              societyName: society.name,
+              onConfirm: () => dispatch(leaveSociety(society._id))
+            })}
+            disabled={isLoading}
+            className="flex-1 border border-[#f85149] text-[#f85149] hover:bg-[#f85149]/10 py-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+            ) : (
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+            )}
+            Leave
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => openModal(MODAL_TYPES.JOIN_SOCIETY, {
+            societyId: society._id,
+            societyName: society.name,
+            onConfirm: () => dispatch(joinSociety(society._id))
+          })}
+          disabled={isLoading}
+          className="w-full bg-[#238636] hover:bg-[#2ea043] text-white py-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+          ) : (
+            <span className="material-symbols-outlined text-[18px]">group_add</span>
+          )}
+          Join Now
+        </button>
+      )}
+    </div>
+  );
+}
+
+// --- MAIN COMPONENT ---
 
 export default function StudentSocieties() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [filterStatus, setFilterStatus] = useState("all");
+  
+  const [activeTab, setActiveTab] = useState("all");
 
-  const allSocieties = useSelector(selectAllSocieties);
+  const status = useSelector((state) => state.societiesLegacy?.status);
+  const allSocieties = useSelector((state) => state.societiesLegacy?.items || []);
+  const mySocieties = useSelector(selectMySocieties);
+  const discoverSocieties = useSelector(selectDiscoverSocieties);
 
   useEffect(() => {
-    if (allSocieties.length === 0) {
-      const mockSocieties = [
-    {
-      id: 1,
-      name: "IEEE Student Chapter",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuA5tRFcE_pFi824MNGNisea0s5XZIR-b-IBAuIchECnJ8ET_u-MZqJKAyC1Cd23hxZ-D0-3ffLxaYR2zyFNLQmsHcU3Iruq3o4_vdBPWs1U7i8yk5F34fm_X6kO9H3r8GanzhHM0DrnO_jKDwK2Ab9Xg-H6Tn7lEQKQnLKqhIGiJK9_1BI7njNayzMDHBkmlbjVHXmYsdsbfWllwCUJLUJx0x3aCnvMx8K49KhPKH4lhFB9yeHgKSJb8pin4eAoUF2y0YxIY0qw4GI",
-      description:
-        "Professional society focused on electrical, electronics, and computer engineering.",
-      members: 245,
-      status: "registered",
-      role: "Member",
-      events: 8,
-      category: "STEM",
-    },
-    {
-      id: 2,
-      name: "Debating Society",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDoQNTWTBvvjCWzGT4LSr1h0qdUOa09wVzKeBx1TX53dyRxgmKHYTDS1TN_XJ-VLe34SDS9ynUpvRNZSRm9Ye3nIOTGeARiF7VoBHRUOoJngE52BBV8TselfYt8GNnQI7A7KevlQzgglbGZlfLMMrKCIFTH_dcWm8clNTFCXKbZchH9FtsE5gMqjY5bl9q-XSz00KbL43PLMbTkQKskFEdjkkYVQLBXyt7kcQRB0O_KhbQDbbDkd0EZRslHm881dAppEobIhYUK95E",
-      description:
-        "Build your communication and critical thinking skills through debating.",
-      members: 156,
-      status: "registered",
-      role: "Member",
-      events: 12,
-      category: "Arts",
-    },
-    {
-      id: 3,
-      name: "AI Club",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDAw7PEHr5CfYENft29JzW_oh8UNy32igeFcIciwY4SLganFizb8gE_yaxTVMUXknXfbbs2veZ4hzrA5Bs6a1Amq2ATMtYS80ZqCfzGd9qYy9u34e2BhMiLfD5hiXIkVwi6DhktH82Ew4leVgs1NDu1MCD6_6Er0SpmlF-WFut93bD157Ns9za1uJCd0Q0dMJoYX8vfND6G0ekTtV3V1Ff_HoP50ErEPHX7P00DVl6K2njjP26CKL39vwnOHDDERwHbVFUbwVixkXY",
-      description:
-        "Explore artificial intelligence, machine learning, and cutting-edge AI applications.",
-      members: 187,
-      status: "registered",
-      role: "Co-founder",
-      events: 15,
-      category: "STEM",
-    },
-    {
-      id: 4,
-      name: "Photography Club",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBUb85ANOhOOBeBqSWd-wOjgFd2X0JCzolY-1hBJfJLPjgh0RfRot_aA7obi-3MbWJEWkp-4EOoKaQsxsXaQF0pQ9_q_NaYN4s8cQJ4w2_2cSVD2afeq_WLhwcjHdqA2L-hS7UiUQHqGRXQZ8e8Sm4KhRJ2_iwsPPiMvNwiHZ_JYeAdQdFb2EItrr5p2Qq1QGaRbiLF5b1_EN7VGa92MVgICDZ6Bl4CG_zB56DJg_8QU-44tuOXEc9QEJPAmSZPLZFMMJYsIDE-has",
-      description:
-        "Discover your creative eye and connect with fellow photography enthusiasts.",
-      members: 98,
-      status: "not-registered",
-      role: null,
-      events: 6,
-      category: "Arts",
-    },
-    {
-      id: 5,
-      name: "Coding Hub",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCf2pszDHzZ8Hrk883PEi2Cznc1MZx0nBGTczVTe8nxYfIomylA04iCbgpsWtyNy6JV0Ib1LTxtI4XPMlt9g4j3Ft0ppd5lJHw7qbnFL4pS6mXoKfSSvQpP90_ke5lhCaqvTbuIuYfX7SMH_sd3y8qQ532m1LXC_fFdHSY0KsGdCSmXtuKbh0LZk-w1jBIn6MRqd2mjR0Nw2ZipmAXJXshFf6VWAcV9wOgJwFR4SwnqC3JtpDK9tRUS3le1eRWvdcfGPu9NizsZ6bg",
-      description:
-        "Learn, share, and collaborate on coding projects with like-minded developers.",
-      members: 312,
-      status: "registered",
-      role: "Co-founder",
-      events: 20,
-      category: "STEM",
-    },
-    {
-      id: 6,
-      name: "Business Club",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuA5CeuVKkEt85366ovsM9gFP98W-VrjlnfBkcllLm2KV54rCRoD_m4BNoAtEUSuQvcFlytThdRTIO9Z1nXBibQKGdaDAK6LhzpjhmYmbXva2k9oIC8h970iRH-SR6zbL8sHw7xVjy9ZboltlifQlD62MISDAbzDqSzU8FKt2BDFzz0BuTa8mENaA8tE8_wp_k0SwC_eUrxSsx4WPDQksvC4LD4-3ZokmlJRAYp0SCCUueTd_Sw9vg6LsJmch92wQln-EnZaZ9hvjhU",
-      description:
-        "Develop business acumen and entrepreneurial skills through workshops and mentoring.",
-      members: 143,
-      status: "not-registered",
-      role: null,
-      events: 10,
-      category: "Commerce",
-    },
-      ];
-      dispatch(setSocieties(mockSocieties));
-    }
-  }, [dispatch, allSocieties.length]);
+    dispatch(fetchSocieties());
+  }, [dispatch]);
 
-  const filteredSocieties = useMemo(
-    () =>
-      filterStatus === "all"
-        ? allSocieties
-        : allSocieties.filter((s) => s.status === filterStatus),
-    [allSocieties, filterStatus]
-  );
-
-  const registeredCount = useMemo(
-    () => allSocieties.filter((s) => s.status === "registered").length,
-    [allSocieties]
-  );
+  let displaySocieties = [];
+  if (activeTab === "all") displaySocieties = allSocieties;
+  else if (activeTab === "my") displaySocieties = mySocieties;
+  else if (activeTab === "discover") displaySocieties = discoverSocieties;
 
   return (
-    <div className="w-full bg-[#0d1117] text-[#c9d1d9] min-h-screen">
-      {/* Header */}
-      <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#30363d] px-6 sm:px-10 lg:px-20 py-3 sticky top-0 bg-[#0d1117]/80 backdrop-blur-sm z-50">
-        <div className="flex items-center gap-8">
-          <button
-            onClick={() => navigate("/student/dashboard")}
-            className="text-white hover:text-[#238636] transition-colors"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <div className="flex items-center gap-4 text-white">
-            <svg
-              className="size-6 text-[#238636]"
-              fill="none"
-              viewBox="0 0 48 48"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M6 6H42L36 24L42 42H6L12 24L6 6Z"
-                fill="currentColor"
-              ></path>
-            </svg>
-            <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-              CampusConnect
-            </h2>
-          </div>
-        </div>
-
-        <div className="flex flex-1 justify-end gap-2 sm:gap-4 md:gap-8 items-center">
-          <div className="hidden lg:flex items-center gap-9">
-            <button
-              onClick={() => navigate("/student/dashboard")}
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-            >
-              Dashboard
-            </button>
-            <a
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-              href="/student/tasks"
-            >
-              Tasks
-            </a>
-            <a
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-              href="/student/events"
-            >
-              Events
-            </a>
-            <a
-              className="text-white text-sm font-medium leading-normal hover:text-[#238636] transition-colors"
-              href="/student/societies"
-            >
-              Societies
-            </a>
-          </div>
-          <div className="flex gap-2">
-            <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#161b22] text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 hover:bg-[#30363d] transition-colors">
-              <span className="material-symbols-outlined text-xl">
-                notifications
-              </span>
-            </button>
-          </div>
-          <Avatar
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnPK_XOPkn_xRuJjkJ28yxLKxQIg3E7DdzwpZWAUgeAqsJeg1D0pmo858Xb6Fnx4adCLic40zRTqLsOgB5E6boNvQW2Wu0w08lQ8gAHHahDiL6kDHGnwyILKuDNZcMSbweDjM8qBupJvllgQTJWoxWH6d86ONwwFSFxfNP61cxoz4janxWpttRZcAk3RL0x_QOxMM51XYQYX2b552BqA-0bjn5bBeUsZ_NyXsgVxC2-H7bNrQwoisuCAVm2GoW5vct4koHXzgMiuI"
-            size="10"
-            hover={true}
-            borderColor="[#238636]"
-          />
-        </div>
-      </header>
+    <div className="w-full bg-[#0d1117] text-[#c9d1d9] min-h-screen pb-12">
 
       {/* Main Content */}
-      <main className="px-4 sm:px-10 lg:px-20 flex flex-1 justify-center py-5 md:py-10">
-        <div className="layout-content-container flex flex-col w-full max-w-6xl">
-          {/* Page Title */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Societies & Clubs
-            </h1>
-            <p className="text-[#8b949e]">
-              Join communities and make meaningful connections
-            </p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <StatCard
-              label="Total Societies"
-              value={allSocieties.length}
-              icon="groups"
-            />
-            <StatCard
-              label="Registered"
-              value={registeredCount}
-              icon="check_circle"
-            />
-            <StatCard
-              label="Available"
-              value={
-                allSocieties.filter((s) => s.status === "not-registered").length
-              }
-              icon="add_circle"
-            />
-          </div>
-
-          {/* Filter Buttons */}
-          <FilterButtons
-            buttons={[
-              { value: "all", label: "All Societies" },
-              { value: "registered", label: "My Societies" },
-              { value: "not-registered", label: "Discover" },
-            ]}
-            activeFilter={filterStatus}
-            onFilterChange={setFilterStatus}
-            className="mb-8"
-          />
-
-          {/* Societies Grid */}
-          {filteredSocieties.length === 0 ? (
-            <Card padding="p-12">
-              <EmptyState
-                icon="search_off"
-                title="No societies found"
-                description="Try adjusting your filters"
-              />
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredSocieties.map((society) => (
-                <SocietyCard key={society.id} society={society} />
-              ))}
-            </div>
-          )}
+      <main className="px-4 sm:px-10 lg:px-20 py-5 md:py-10 max-w-6xl mx-auto">
+        <div className="mb-8 flex flex-col gap-2">
+          <h1 className="text-4xl font-bold text-white">Societies & Clubs</h1>
+          <p className="text-[#8b949e]">Join communities and make meaningful connections.</p>
         </div>
+
+        {/* Filter Tabs */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-2 mb-8 inline-flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`px-5 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "all" ? "bg-[#238636] text-white" : "text-[#c9d1d9] hover:bg-[#30363d]"
+            }`}
+          >
+            All Societies ({allSocieties.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("my")}
+            className={`px-5 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "my" ? "bg-[#238636] text-white" : "text-[#c9d1d9] hover:bg-[#30363d]"
+            }`}
+          >
+            My Societies ({mySocieties.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("discover")}
+            className={`px-5 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "discover" ? "bg-[#238636] text-white" : "text-[#c9d1d9] hover:bg-[#30363d]"
+            }`}
+          >
+            Discover ({discoverSocieties.length})
+          </button>
+        </div>
+
+        {/* Loading Skeletons */}
+        {status === 'loading' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse bg-[#161b22] h-64 rounded-lg border border-[#30363d]"></div>
+            ))}
+          </div>
+        )}
+
+        {/* Societies Grid */}
+        {status === 'succeeded' && displaySocieties.length === 0 ? (
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-16 flex flex-col items-center justify-center text-center">
+            <span className="material-symbols-outlined text-6xl text-[#8b949e] mb-4">search_off</span>
+            <h3 className="text-xl font-bold text-white mb-2">No societies found</h3>
+            <p className="text-[#8b949e]">There are no societies in this category.</p>
+          </div>
+        ) : status === 'succeeded' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displaySocieties.map((society) => (
+              <div
+                key={society._id}
+                className="bg-[#161b22] border border-[#30363d] rounded-xl p-5 flex flex-col hover:border-[#238636]/50 transition-colors relative"
+              >
+                {/* Category Badge */}
+                <span className="absolute top-5 right-5 bg-[#30363d] text-[#c9d1d9] text-xs px-2 py-1 rounded font-medium">
+                  {society.category}
+                </span>
+
+                {/* Society Header */}
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#238636]/40 to-[#1f6feb]/40 flex flex-shrink-0 items-center justify-center text-white text-xl font-bold border border-[#30363d]">
+                    {society.name.charAt(0)}
+                  </div>
+                  <div className="flex flex-col pr-12">
+                    <h3 className="text-white font-bold text-lg leading-tight">{society.name}</h3>
+                    {society.userRole && (
+                      <span className="text-[#238636] text-xs font-bold mt-1 uppercase tracking-wider">
+                        Role: {society.userRole}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-[#8b949e] text-sm mb-6 flex-1">
+                  {society.description}
+                </p>
+
+                {/* Stats */}
+                <div className="flex items-center gap-6 mt-auto">
+                  <div className="flex items-center gap-1.5 text-[#c9d1d9] text-sm font-medium">
+                    <span className="material-symbols-outlined text-[18px] text-[#8b949e]">groups</span>
+                    {society.memberCount}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#c9d1d9] text-sm font-medium">
+                    <span className="material-symbols-outlined text-[18px] text-[#8b949e]">event</span>
+                    {society.eventCount}
+                  </div>
+                </div>
+
+                {/* Buttons Component */}
+                <SocietyActionBlock 
+                  society={society} 
+                  tab={society.isMember ? "my" : "discover"} 
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
       </main>
     </div>
   );

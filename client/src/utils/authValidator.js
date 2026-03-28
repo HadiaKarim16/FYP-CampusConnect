@@ -60,6 +60,19 @@ export function isValidEmail(email) {
 }
 
 /**
+ * University email domain restriction
+ * Only emails ending with @iba.suk.edu.pk are allowed
+ * @param {string} email
+ * @returns {boolean}
+ */
+export const UNIVERSITY_DOMAIN = 'iba-suk.edu.pk'; // FIX: Changed domain from 'iba.suk.edu.pk' to 'iba-suk.edu.pk' to validate the hyphenated domain.
+
+export function isUniversityEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  return email.trim().toLowerCase().endsWith(`@${UNIVERSITY_DOMAIN}`);
+}
+
+/**
  * Validate password strength
  * Requires: minimum 8 characters, at least one uppercase, one number
  * @param {string} password
@@ -224,6 +237,8 @@ export function validateSignupForm(formData) {
   // Validate email
   if (!isValidEmail(formData.email)) {
     errors.email = 'Please enter a valid email address';
+  } else if (!isUniversityEmail(formData.email)) {
+    errors.email = `Only university emails are allowed (@${UNIVERSITY_DOMAIN})`;
   }
 
   // Validate password
@@ -264,6 +279,8 @@ export function validateLoginForm(formData) {
   // Validate email
   if (!isValidEmail(formData.email)) {
     errors.email = 'Please enter a valid email address';
+  } else if (!isUniversityEmail(formData.email)) {
+    errors.email = `Only university emails are allowed (@${UNIVERSITY_DOMAIN})`;
   }
 
   // Validate password exists (don't validate strength for login)

@@ -1,96 +1,79 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import Avatar from "../../components/common/Avatar";
 import MentorWidget from "@/components/dashboard/MentorWidget";
+import SharedFooter from "../../components/common/SharedFooter";
+import MentorTopBar from "../../components/mentoring/MentorTopBar";
+import { useModal, MODAL_TYPES } from "../../contexts/ModalContext";
+import { 
+  fetchSessionsThunk, 
+  selectScheduledSessions, 
+  selectCompletedSessions, 
+  selectMentoringLoading
+} from "../../redux/slices/mentoringSlice";
 
 export default function MentorDashboard() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { openModal } = useModal();
   const [searchValue, setSearchValue] = useState("");
+
+  const scheduledSessions = useSelector(selectScheduledSessions);
+  const completedSessions = useSelector(selectCompletedSessions);
+  const loading = useSelector(selectMentoringLoading);
+  const authUser = useSelector(state => state.auth?.user);
+
+  useEffect(() => {
+    dispatch(fetchSessionsThunk());
+  }, [dispatch]);
+
+  const safeSearchValue = (searchValue || "").toLowerCase();
+
+  const filteredScheduled = scheduledSessions.filter(s => 
+    !safeSearchValue || (s.menteeId?.profile?.displayName || "").toLowerCase().includes(safeSearchValue)
+  );
+  const filteredCompleted = completedSessions.filter(s => 
+    !safeSearchValue || (s.menteeId?.profile?.displayName || "").toLowerCase().includes(safeSearchValue)
+  );
+
+  const upcomingSessions = filteredScheduled.slice(0, 3);
+  const recentRatings = filteredCompleted
+    .filter(s => s.reviewId?.rating)
+    .slice(0, 2);
+  const pendingFeedback = filteredCompleted.filter(s => !s.reviewId);
+
+  const totalEarnings = completedSessions.reduce((sum, s) => sum + (s.mentorPayout || s.fee || 0), 0);
 
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col font-display text-[#c9d1d9] group/design-root overflow-x-hidden bg-[#112118]">
       <div className="layout-container flex h-full grow flex-col">
-        {/* TopNavBar */}
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#30363d] px-6 py-3 lg:px-10 bg-[#0d1117]">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-4 text-white">
-              <svg
-                className="size-6 text-[#1dc964]"
-                fill="none"
-                viewBox="0 0 48 48"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M6 6H42L36 24L42 42H6L12 24L6 6Z"
-                  fill="currentColor"
-                ></path>
-              </svg>
-              <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                CampusConnect
-              </h2>
-            </div>
+        <MentorTopBar
+          showBack={false}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+        >
+          <button
+            onClick={() => navigate("/mentor-mentees")}
+            className="text-white text-sm font-medium leading-normal hover:text-[#1dc964] transition-colors"
+          >
+            Mentees
+          </button>
+          <button
+            onClick={() => navigate("/mentor-events")}
+            className="text-white text-sm font-medium leading-normal hover:text-[#1dc964] transition-colors"
+          >
+            Events
+          </button>
+          <button
+            onClick={() => navigate("/mentor-profile-view")}
+            className="text-white text-sm font-medium leading-normal hover:text-[#1dc964] transition-colors"
+          >
+            Profile
+          </button>
+        </MentorTopBar>
 
-            {/* Search Bar */}
-            <label className="hidden md:flex flex-col min-w-40 !h-10 max-w-64">
-              <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
-                <div className="text-[#9eb7a9] flex border-none bg-[#161b22] items-center justify-center pl-4 rounded-l-lg border-r-0">
-                  <span className="material-symbols-outlined text-xl">
-                    search
-                  </span>
-                </div>
-                <input
-                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border-none bg-[#161b22] focus:border-none h-full placeholder:text-[#9eb7a9] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
-                  placeholder="Search"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                />
-              </div>
-            </label>
-          </div>
-
-          {/* Right Side Navigation */}
-          <div className="flex flex-1 justify-end gap-6 lg:gap-8">
-            <div className="hidden lg:flex items-center gap-8">
-              <button
-                onClick={() => navigate("/mentor-mentees")}
-                className="text-white text-sm font-medium leading-normal hover:text-[#1dc964] transition-colors"
-              >
-                Mentees
-              </button>
-              <button
-                onClick={() => navigate("/mentor-events")}
-                className="text-white text-sm font-medium leading-normal hover:text-[#1dc964] transition-colors"
-              >
-                Events
-              </button>
-              <button
-                onClick={() => navigate("/mentor-profile-view")}
-                className="text-white text-sm font-medium leading-normal hover:text-[#1dc964] transition-colors"
-              >
-                Profile
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate("/mentor-notifications")}
-                className="flex min-w-[40px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-2 bg-transparent text-white hover:bg-[#161b22] transition-colors relative group"
-              >
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#ef4444] rounded-full"></span>
-              </button>
-              <Avatar
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgjnv-ixtGxRDh4QEaPBNUdMjXlCgO4Di7YsyjQZ_I21EDiOSRocUjGni8cViV_CJzUNuTwbKO6qL2ELKucJviHvtTGb5IoWrvryA6QiSKES--KcSvqsDWZ1KpSuZmk0lwuAdXOoKx29-hTfGzUVjUFmMfKN8ePF2jbbETEb-ZJ4sbGp0i5zNnzNhdXDhOyG5SRDAgKbhgIsTZDf5Qvwv7Du7ImY-uPgAE-OPeOuTdAxD6cykLE_jM18XdA4t_EU_5vQrYK9XVePg"
-                size="10"
-                border={true}
-                hover={true}
-              />
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="px-4 sm:px-6 lg:px-8 xl:px-10 flex flex-1 justify-center py-8">
+        <main className="px-6 lg:px-10 flex flex-1 justify-center py-5">
           <div className="layout-content-container flex flex-col w-full max-w-6xl flex-1">
             {/* Page Heading */}
             <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
@@ -103,7 +86,7 @@ export default function MentorDashboard() {
                 </p>
               </div>
               <button
-                onClick={() => navigate("/mentor-profile")}
+                onClick={() => openModal(MODAL_TYPES.SET_AVAILABILITY)}
                 className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#1dc964] text-[#112118] text-base font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
               >
                 <span className="material-symbols-outlined mr-2">
@@ -118,30 +101,59 @@ export default function MentorDashboard() {
               {/* Upcoming Sessions (2 columns) */}
               <MentorWidget
                 title="Upcoming Sessions"
-                actionLabel="View All"
+                actionLabel={scheduledSessions.length > 0 ? "View All" : null}
                 actionIcon="arrow_forward"
                 onAction={() => navigate("/my-sessions")}
                 actionClassName="text-[#1dc964] text-sm font-semibold hover:text-white transition-colors flex items-center gap-1"
                 className="lg:col-span-2"
               >
-                <div className="flex flex-col items-center justify-center gap-6 py-10 text-center">
-                  <div className="text-[#1dc964]">
-                    <span
-                      className="material-symbols-outlined inline-block"
-                      style={{ fontSize: "64px" }}
-                    >
-                      event_busy
-                    </span>
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <div className="w-8 h-8 border-3 border-[#1dc964] border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                  <div className="flex max-w-[480px] flex-col items-center gap-2">
-                    <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                      No sessions yet
-                    </p>
-                    <p className="text-[#9eb7a9] text-sm font-normal leading-normal max-w-[480px]">
-                      Once a student books a session, it will appear here!
-                    </p>
+                ) : upcomingSessions.length > 0 ? (
+                  <div className="flex flex-col gap-4">
+                    {upcomingSessions.map((session) => (
+                      <div key={session._id} className="flex items-center justify-between p-4 bg-[#0d1117] rounded-xl border border-[#30363d] hover:border-[#1dc964] transition-colors cursor-pointer" onClick={() => navigate("/my-sessions")}>
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={session.menteeId?.profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.menteeId?.profile?.displayName}`} 
+                            className="w-10 h-10 rounded-full"
+                            alt="Mentee"
+                          />
+                          <div>
+                            <p className="text-white font-semibold text-sm">{session.menteeId?.profile?.displayName || "Student"}</p>
+                            <p className="text-[#9eb7a9] text-xs">{new Date(session.startAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          session.status === 'confirmed' ? 'bg-[#1dc96422] text-[#1dc964]' : 'bg-[#e3b34122] text-[#e3b341]'
+                        }`}>
+                          {session.status}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-6 py-10 text-center">
+                    <div className="text-[#1dc964]">
+                      <span
+                        className="material-symbols-outlined inline-block"
+                        style={{ fontSize: "64px" }}
+                      >
+                        event_busy
+                      </span>
+                    </div>
+                    <div className="flex max-w-[480px] flex-col items-center gap-2">
+                      <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
+                        No sessions yet
+                      </p>
+                      <p className="text-[#9eb7a9] text-sm font-normal leading-normal max-w-[480px]">
+                        Once a student books a session, it will appear here!
+                      </p>
+                    </div>
+                  </div>
+                )}
               </MentorWidget>
 
               {/* Earnings Overview */}
@@ -155,12 +167,12 @@ export default function MentorDashboard() {
                   <div className="flex flex-col gap-2">
                     <p className="text-[#9eb7a9] text-sm">Total Earnings</p>
                     <p className="text-white text-4xl font-bold tracking-tight">
-                      $0.00
+                      ${totalEarnings.toFixed(2)}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <p className="text-[#9eb7a9] text-sm">Sessions Completed</p>
-                    <p className="text-white text-2xl font-bold">0</p>
+                    <p className="text-white text-2xl font-bold">{completedSessions.length}</p>
                   </div>
                   <div className="mt-auto">
                     <button
@@ -180,12 +192,30 @@ export default function MentorDashboard() {
               <MentorWidget
                 title="Pending Feedback"
                 actionIcon="arrow_forward"
-                onAction={() => navigate("/feedback")}
+                onAction={() => navigate("/my-sessions")}
                 actionClassName="text-[#1dc964] text-sm font-semibold hover:text-white transition-colors"
               >
+                {pendingFeedback.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {pendingFeedback.slice(0, 3).map((session) => (
+                      <div key={session._id} className="flex items-center gap-3 p-3 bg-[#0d1117] rounded-xl border border-[#30363d]">
+                        <img 
+                          src={session.menteeId?.profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.menteeId?.profile?.displayName}`} 
+                          className="w-8 h-8 rounded-full"
+                          alt="Mentee"
+                        />
+                        <div className="flex-1">
+                          <p className="text-white text-sm font-medium">{session.menteeId?.profile?.displayName || "Student"}</p>
+                          <p className="text-[#9eb7a9] text-xs">Awaiting review</p>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-[#e3b34122] text-[#e3b341]">Pending</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                 <div
                   className="flex flex-col items-center justify-center gap-6 py-10 text-center cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => navigate("/feedback")}
+                  onClick={() => navigate("/my-sessions")}
                 >
                   <div className="text-[#1dc964]">
                     <span
@@ -204,40 +234,69 @@ export default function MentorDashboard() {
                     </p>
                   </div>
                 </div>
+                )}
               </MentorWidget>
 
               {/* Recent Mentee Ratings (2 columns) */}
               <MentorWidget
                 title="Recent Mentee Ratings"
-                actionLabel="View All"
+                actionLabel={recentRatings.length > 0 ? "View All" : null}
                 actionIcon="arrow_forward"
                 onAction={() => navigate("/my-sessions")}
                 actionClassName="text-[#1dc964] text-sm font-semibold hover:text-white transition-colors flex items-center gap-1"
                 className="lg:col-span-2"
               >
-                <div className="flex flex-col items-center justify-center gap-6 py-10 text-center">
-                  <div className="text-[#1dc964]">
-                    <span
-                      className="material-symbols-outlined inline-block"
-                      style={{ fontSize: "64px" }}
-                    >
-                      star_outline
-                    </span>
+                {recentRatings.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {recentRatings.map((session) => (
+                      <div key={session._id} className="p-4 bg-[#0d1117] rounded-xl border border-[#30363d]">
+                        <div className="flex items-center gap-3 mb-3">
+                          <img 
+                            src={session.menteeId?.profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.menteeId?.profile?.displayName}`} 
+                            className="w-8 h-8 rounded-full"
+                            alt="Mentee"
+                          />
+                          <p className="text-white font-semibold text-sm">{session.menteeId?.profile?.displayName || "Student"}</p>
+                          <div className="flex ml-auto">
+                            {[...Array(5)].map((_, i) => (
+                              <span key={i} className={i < (session.reviewId?.rating || 0) ? "text-yellow-400 text-xs" : "text-[#30363d] text-xs"}>
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        {session.reviewId?.comment && (
+                          <p className="text-[#9eb7a9] text-xs italic line-clamp-2">"{session.reviewId.comment}"</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex max-w-[480px] flex-col items-center gap-2">
-                    <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                      No ratings yet
-                    </p>
-                    <p className="text-[#9eb7a9] text-sm font-normal leading-normal max-w-[480px]">
-                      Your mentee ratings will appear here after completed
-                      sessions.
-                    </p>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-6 py-10 text-center">
+                    <div className="text-[#1dc964]">
+                      <span
+                        className="material-symbols-outlined inline-block"
+                        style={{ fontSize: "64px" }}
+                      >
+                        star_outline
+                      </span>
+                    </div>
+                    <div className="flex max-w-[480px] flex-col items-center gap-2">
+                      <p className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
+                        No ratings yet
+                      </p>
+                      <p className="text-[#9eb7a9] text-sm font-normal leading-normal max-w-[480px]">
+                        Your mentee ratings will appear here after completed
+                        sessions.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </MentorWidget>
             </div>
           </div>
         </main>
+        <SharedFooter />
       </div>
     </div>
   );

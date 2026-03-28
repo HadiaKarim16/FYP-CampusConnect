@@ -1,4 +1,24 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getAllEvents } from '../../api/eventApi';
+
+// ===== ASYNC THUNKS =====
+export const fetchUpcomingEvents = createAsyncThunk(
+  'events/fetchUpcoming',
+  async (filters = {}, { rejectWithValue }) => {
+    try {
+      const response = await getAllEvents({ ...filters, limit: 5 });
+      // The API uses pagination, so the array is in response.data or response directly.
+      // Usually it's response.data or response array.
+      const data = response.data || response;
+      if (data && Array.isArray(data.docs)) return data.docs;
+      if (data && Array.isArray(data.items)) return data.items;
+      if (data && Array.isArray(data)) return data;
+      return [];
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to fetch events');
+    }
+  }
+);
 
 const initialState = {
   events: [],
@@ -57,6 +77,21 @@ const eventSlice = createSlice({
     clearEventError: (state) => {
       state.error = null;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchUpcomingEvents.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUpcomingEvents.fulfilled, (state, action) => {
+        state.loading = false;
+        state.upcomingEvents = action.payload;
+      })
+      .addCase(fetchUpcomingEvents.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 

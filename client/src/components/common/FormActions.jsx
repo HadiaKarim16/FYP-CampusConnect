@@ -42,10 +42,10 @@ export default function FormActions({
           {cancelText}
         </button>
       )}
-      {onSubmit && (
+      {submitText && (
         <button
           type={onSubmit ? "button" : "submit"}
-          onClick={onSubmit}
+          onClick={onSubmit || undefined}
           className={`flex-1 ${variantClasses[submitVariant]} ${submitClassName} flex items-center justify-center gap-2`}
           disabled={disabled || loading}
         >

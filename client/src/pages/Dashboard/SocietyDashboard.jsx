@@ -1,67 +1,65 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import { useAuth } from "@/contexts/AuthContext";
+import { useModal, MODAL_TYPES } from "@/contexts/ModalContext";
 import AnalyticsWidget from "@/components/dashboard/AnalyticsWidget";
 import SocietySummary from "@/components/dashboard/SocietySummary";
 import {
   selectRegisteredSocieties,
-  setRegisteredSocieties,
+  fetchUserSocieties,
+  fetchPendingRequests,
+  selectMemberRequests,
 } from "@/redux/slices/societySlice";
 import {
   selectUpcomingEvents,
-  setUpcomingEvents,
+  fetchUpcomingEvents,
 } from "@/redux/slices/eventSlice";
 
 export default function SocietyDashboard() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const societies = useSelector(selectRegisteredSocieties);
-  const upcomingEvents = useSelector(selectUpcomingEvents);
+  const { openModal } = useModal();
+  const societies = useSelector(selectRegisteredSocieties) || [];
+  const upcomingEvents = useSelector(selectUpcomingEvents) || [];
+  const memberRequests = useSelector(selectMemberRequests) || [];
+  const { user } = useAuth();
+
+  const displayName =
+    user?.profile?.displayName ||
+    `${user?.profile?.firstName || ""} ${
+      user?.profile?.lastName || ""
+    }`.trim() ||
+    user?.email?.split("@")[0] ||
+    "Society Head";
+
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
 
   useEffect(() => {
-    if (societies.length === 0) {
-      dispatch(
-        setRegisteredSocieties([
-          { id: 1, name: "Tech Innovators Club", image: "🚀" },
-          { id: 2, name: "Entrepreneurs of Tomorrow", image: "💼" },
-          { id: 3, name: "Debate Society", image: "🎤" },
-        ])
-      );
+    const userId = user?._id || user?.id;
+    if (userId) {
+      dispatch(fetchUserSocieties(userId));
+      dispatch(fetchUpcomingEvents({ campusId: user.campusId, limit: 3 }));
     }
-  }, [dispatch, societies.length]);
+  }, [dispatch, user]);
 
   useEffect(() => {
-    if (upcomingEvents.length === 0) {
-      dispatch(
-        setUpcomingEvents([
-          {
-            id: 1,
-            date: "28",
-            month: "NOV",
-            title: "Annual Tech Summit",
-            society: "Tech Innovators Club",
-            time: "10:00 AM - 4:00 PM",
-          },
-          {
-            id: 2,
-            date: "02",
-            month: "DEC",
-            title: "Startup Pitch Night",
-            society: "Entrepreneurs of Tomorrow",
-            time: "7:00 PM",
-          },
-          {
-            id: 3,
-            date: "05",
-            month: "DEC",
-            title: "The Art of Persuasion Workshop",
-            society: "Debate Society",
-            time: "2:00 PM - 3:30 PM",
-          },
-        ])
-      );
+    // Fetch pending requests for societies led by this user
+    const userId = user?._id || user?.id;
+    if (societies.length > 0 && userId) {
+      societies.forEach((soc) => {
+        const creatorId = typeof soc.createdBy === "object" ? soc.createdBy?._id || soc.createdBy?.id : soc.createdBy;
+        if (creatorId === userId) {
+          dispatch(fetchPendingRequests(soc._id || soc.id));
+        }
+      });
     }
-  }, [dispatch, upcomingEvents.length]);
+  }, [dispatch, societies, user]);
 
   return (
     <div className="flex min-h-screen bg-[#111714]">
@@ -72,17 +70,25 @@ export default function SocietyDashboard() {
           <div className="flex flex-col gap-4">
             {/* Profile */}
             <button
-              onClick={() => (window.location.href = "/society/profile")}
-              className="flex gap-3 items-center hover:opacity-80 transition-opacity cursor-pointer"
+              onClick={() => navigate("/society/profile")}
+              className="flex gap-3 items-center hover:opacity-80 transition-opacity cursor-pointer text-left overflow-hidden"
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-bold">
-                AC
-              </div>
-              <div className="flex flex-col text-left">
-                <h1 className="text-white text-base font-medium leading-normal">
-                  Alex Chen
+              {user?.profile?.avatar ? (
+                <img
+                  src={user.profile.avatar}
+                  alt={displayName}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-[#29382f]"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                  {initials}
+                </div>
+              )}
+              <div className="flex flex-col flex-1 min-w-0">
+                <h1 className="text-white text-base font-medium leading-normal truncate">
+                  {displayName}
                 </h1>
-                <p className="text-[#9eb7a9] text-sm font-normal leading-normal">
+                <p className="text-[#9eb7a9] text-sm font-normal leading-normal truncate">
                   Society Head
                 </p>
               </div>
@@ -90,9 +96,9 @@ export default function SocietyDashboard() {
 
             {/* Navigation */}
             <nav className="flex flex-col gap-2 mt-4">
-              <a
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md bg-[#1a241e]"
-                href="#"
+                to="/society/dashboard"
               >
                 <span className="material-symbols-outlined text-white">
                   dashboard
@@ -100,10 +106,10 @@ export default function SocietyDashboard() {
                 <p className="text-white text-sm font-medium leading-normal">
                   Dashboard
                 </p>
-              </a>
-              <a
+              </Link>
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/societies"
+                to="/societies"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   groups
@@ -111,10 +117,10 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Societies
                 </p>
-              </a>
-              <a
+              </Link>
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/society/events"
+                to="/society/events"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   event
@@ -122,10 +128,10 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Events
                 </p>
-              </a>
-              <a
+              </Link>
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/society/mentoring"
+                to="/society/mentoring"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   school
@@ -133,10 +139,10 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Mentoring
                 </p>
-              </a>
-              <a
+              </Link>
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/society/networking"
+                to="/society/networking"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   lan
@@ -144,10 +150,10 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Networking
                 </p>
-              </a>
-              <a
+              </Link>
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/society/analytics"
+                to="/society/analytics"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   analytics
@@ -155,22 +161,22 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Analytics
                 </p>
-              </a>
+              </Link>
             </nav>
           </div>
 
           {/* Bottom Section */}
           <div className="flex flex-col gap-2">
             <button
-              onClick={() => (window.location.href = "/society/create")}
+              onClick={() => openModal(MODAL_TYPES.CREATE_SOCIETY)}
               className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-md h-10 px-4 bg-[#1dc964] text-[#111714] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#1dc964]/90 transition-colors"
             >
               <span className="truncate">Create New</span>
             </button>
             <div className="flex flex-col gap-1 border-t border-[#29382f] pt-2 mt-2">
-              <a
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/society/settings"
+                to="/society/settings"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   settings
@@ -178,10 +184,10 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Settings
                 </p>
-              </a>
-              <a
+              </Link>
+              <Link
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#1a241e]/50 transition-colors"
-                href="/logout"
+                to="/logout"
               >
                 <span className="material-symbols-outlined text-[#9eb7a9]">
                   logout
@@ -189,7 +195,7 @@ export default function SocietyDashboard() {
                 <p className="text-[#9eb7a9] text-sm font-medium leading-normal">
                   Logout
                 </p>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -209,7 +215,7 @@ export default function SocietyDashboard() {
               </p>
             </div>
             <button
-              onClick={() => (window.location.href = "/society/create")}
+              onClick={() => openModal(MODAL_TYPES.CREATE_SOCIETY)}
               className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-5 bg-[#1dc964] text-[#111714] gap-2 text-base font-bold leading-normal tracking-[0.015em] hover:bg-[#1dc964]/90 transition-colors"
             >
               <span className="material-symbols-outlined text-[#111714]">
@@ -226,7 +232,7 @@ export default function SocietyDashboard() {
               title="My Societies"
               societies={societies}
               variant="list"
-              onItemAction={() => (window.location.href = "/society/manage")}
+              onItemAction={() => navigate("/society/manage")}
             />
 
             {/* Approvals Needed Widget */}
@@ -240,13 +246,13 @@ export default function SocietyDashboard() {
                     person_add
                   </span>
                   <p className="text-white">
-                    You have <span className="font-bold">3</span> pending member
-                    requests.
+                    You have <span className="font-bold">{memberRequests.length}</span> pending member
+                    request{memberRequests.length === 1 ? "" : "s"}.
                   </p>
                 </div>
                 <button
                   onClick={() =>
-                    (window.location.href = "/society/member-requests")
+                    navigate("/society/member-requests")
                   }
                   className="flex cursor-pointer items-center justify-center overflow-hidden rounded-md h-10 px-4 bg-[#1dc964] text-[#111714] text-sm font-bold leading-normal w-full hover:bg-[#1dc964]/90 transition-colors"
                 >
@@ -262,7 +268,7 @@ export default function SocietyDashboard() {
                   Upcoming Events
                 </h2>
                 <button
-                  onClick={() => (window.location.href = "/society/events")}
+                  onClick={() => navigate("/society/events")}
                   className="flex cursor-pointer items-center justify-center overflow-hidden rounded-md h-9 px-4 bg-[#29382f] text-white gap-2 text-sm font-medium leading-normal hover:bg-[#29382f]/80 transition-colors"
                 >
                   <span className="material-symbols-outlined">add</span>
@@ -270,24 +276,35 @@ export default function SocietyDashboard() {
                 </button>
               </div>
               <div className="flex flex-col gap-4">
-                {upcomingEvents.map((event) => (
-                  <div key={event.id} className="flex items-start gap-4">
-                    <div className="flex flex-col items-center justify-center bg-[#29382f] rounded-md p-2 w-14 text-center">
-                      <span className="text-[#9eb7a9] text-xs font-bold uppercase">
-                        {event.month}
-                      </span>
-                      <span className="text-white text-2xl font-black">
-                        {event.date}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{event.title}</p>
-                      <p className="text-sm text-[#9eb7a9]">
-                        {event.society} • {event.time}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {upcomingEvents.length > 0 ? (
+                  upcomingEvents.map((event) => {
+                    const startDate = new Date(event.startAt);
+                    const month = startDate.toLocaleString("default", { month: "short" }).toUpperCase();
+                    const dateObj = startDate.getDate().toString().padStart(2, '0');
+                    const timeObj = startDate.toLocaleTimeString("default", { hour: "2-digit", minute: "2-digit" });
+
+                    return (
+                      <div key={event._id || event.id} className="flex items-start gap-4">
+                        <div className="flex flex-col items-center justify-center bg-[#29382f] rounded-md p-2 w-14 text-center flex-shrink-0">
+                          <span className="text-[#9eb7a9] text-xs font-bold uppercase">
+                            {month}
+                          </span>
+                          <span className="text-white text-2xl font-black">
+                            {dateObj}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white truncate">{event.title}</p>
+                          <p className="text-sm text-[#9eb7a9] truncate">
+                            {event.societyId?.name || "Campus Event"} • {timeObj}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-[#9eb7a9] text-sm">No upcoming events scheduled.</p>
+                )}
               </div>
             </section>
 

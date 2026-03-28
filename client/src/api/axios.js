@@ -2,74 +2,120 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
-  timeout: 10000,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  timeout: 15000,
+  withCredentials: true, // CRITICAL: sends HTTP-only cookies (refreshToken) with every request
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor - Add auth token to requests
+// ─── Request Interceptor: Attach access token ────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const authState = localStorage.getItem('authState');
+      const token = authState ? JSON.parse(authState)?.token : null;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      // Invalid JSON in localStorage — ignore
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor - Handle common errors
+// ─── Response Interceptor: Auto-refresh expired access tokens ─────────────────
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response) {
-      // Server responded with error status
-      const { status, data } = error.response;
-      
-      switch (status) {
-        case 401:
-          // Unauthorized - clear auth and redirect to login
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('user');
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Only attempt refresh on 401 errors, and NOT for auth-related endpoints
+    const isAuthEndpoint = originalRequest?.url?.includes('/login') ||
+                           originalRequest?.url?.includes('/register') ||
+                           originalRequest?.url?.includes('/refresh-token');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      if (isRefreshing) {
+        // Another refresh is already in flight — queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // The refreshToken is sent automatically via the HTTP-only cookie (withCredentials: true)
+        const { data } = await axios.post(
+          `${api.defaults.baseURL}/users/refresh-token`,
+          {},
+          { withCredentials: true }
+        );
+
+        const newAccessToken = data.data.accessToken;
+
+        // Update the stored token in localStorage
+        try {
+          const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+          authState.token = newAccessToken;
+          localStorage.setItem('authState', JSON.stringify(authState));
+        } catch { /* ignore */ }
+
+        // Retry the original request with the new token
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        processQueue(null, newAccessToken);
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed — force logout
+        processQueue(refreshError, null);
+        localStorage.removeItem('authState');
+        sessionStorage.clear();
+        if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
-          break;
-        case 403:
-          // Forbidden - redirect to access denied
-          window.location.href = '/error/access-denied';
-          break;
-        case 404:
-          // Resource not found
-          console.error('Resource not found:', data.message);
-          break;
-        case 500:
-          // Server error
-          window.location.href = '/error/server-error';
-          break;
-        case 503:
-          // Service unavailable
-          window.location.href = '/error/service-unavailable';
-          break;
-        default:
-          console.error('API Error:', data.message || 'An error occurred');
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Non-401 errors: log and reject
+    if (error.response) {
+      const { status } = error.response;
+      if (status === 403) {
+        console.error('Access denied:', error.response.data?.message);
+      } else if (status === 500) {
+        console.error('Server error:', error.response.data?.message);
       }
     } else if (error.request) {
-      // Request made but no response
-      console.error('Network error:', error.message);
-      window.location.href = '/error/network-error';
-    } else {
-      // Error in request setup
-      console.error('Request error:', error.message);
+      console.error('Network error — backend may be offline:', error.message);
     }
-    
+
     return Promise.reject(error);
   }
 );
 
 export default api;
+

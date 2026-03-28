@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { isValidRole, getDashboardRoute, VALID_ROLES } from '../utils/authValidator';
-import { getAssignedRole } from '../utils/accountService';
 
 /**
  * ProtectedRoute Component - Secure role-based routing with validation
@@ -21,8 +20,8 @@ import { getAssignedRole } from '../utils/accountService';
  *   <Route path="/student/dashboard" element={<StudentDashboard />} />
  * </Route>
  */
-export default function ProtectedRoute({ requiredRole = null, requireOnboarding = true }) {
-  const { isAuthenticated, role, loading, onboardingCompleted, user } = useAuth();
+export default function ProtectedRoute({ requiredRole = null, requiresOnboarding = true }) {
+  const { isAuthenticated, role, loading, onboardingCompleted } = useAuth();
 
   // Show loading state while auth is initializing
   if (loading) {
@@ -42,44 +41,29 @@ export default function ProtectedRoute({ requiredRole = null, requireOnboarding 
   }
 
   // Validate role integrity
-  // Ensure user's role is a valid system role
   if (!isValidRole(role)) {
-    // Role is invalid - log out user for security
     console.warn('Invalid role detected:', role);
     return <Navigate to="/login" replace />;
   }
 
-  // IMPORTANT: Validate role matches account assignment
-  // This prevents users from manually changing roles in localStorage
-  if (isAuthenticated && role) {
-    const assignedRole = getAssignedRole(user?.email || '');
-    
-    // If we can verify the account and role doesn't match assignment, block access
-    if (assignedRole && assignedRole !== role) {
-      console.warn(
-        'Role mismatch detected: user role %s does not match assigned role %s',
-        role,
-        assignedRole
-      );
-      return <Navigate to="/login" replace />;
-    }
-  }
-
   // Check role-based access
-  // If a specific role is required, validate user has that role
+  // requiredRole can be a single string or an array of allowed roles
   if (requiredRole) {
-    if (!isValidRole(requiredRole)) {
+    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+
+    // Validate all specified roles are valid
+    if (allowedRoles.some(r => !isValidRole(r))) {
       return <Navigate to="/login" replace />;
     }
 
-    if (role !== requiredRole) {
-      // User doesn't have required role - show access denied page
+    if (!allowedRoles.includes(role)) {
+      // User doesn't have any of the required roles - show access denied page
       return <Navigate to="/error/access-denied" replace />;
     }
   }
 
-  // Check if onboarding is required but not completed
-  if (requireOnboarding && !onboardingCompleted) {
+  // FIX: Only redirect to onboarding if the route actually requires it
+  if (requiresOnboarding && !onboardingCompleted) {
     return <Navigate to="/onboarding/welcome" replace />;
   }
 

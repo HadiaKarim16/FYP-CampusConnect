@@ -1,315 +1,380 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import {
-  selectAllMembers,
-  setMembers,
-} from "../../redux/slices/memberSlice";
-import Avatar from "../../components/common/Avatar";
+  fetchProfiles,
+  sendConnectionRequest,
+  setFilter,
+  setPage,
+  clearFilters,
+  selectPaginatedProfiles,
+  selectTotalPages,
+  selectFilters,
+  selectCurrentPage,
+  selectActionLoading
+} from '../../redux/slices/academicNetworkSlice';
+import { selectUnreadCount } from '../../redux/slices/notificationsSlice';
+import { getInitials } from '../../utils/helpers';
+
 
 export default function AcademicNetwork() {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSort, setSelectedSort] = useState("name");
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const profiles = useSelector(selectAllMembers);
+  const status = useSelector((state) => state.academicNetwork.status);
+  const profiles = useSelector(selectPaginatedProfiles);
+  const totalPages = useSelector(selectTotalPages);
+  const filters = useSelector(selectFilters);
+  const currentPage = useSelector(selectCurrentPage);
+  const actionLoading = useSelector(selectActionLoading);
+  const unreadCount = useSelector(selectUnreadCount);
+
+  const searchTimeoutRef = useRef(null);
+  const gridTopRef = useRef(null);
 
   useEffect(() => {
-    if (profiles.length === 0) {
-      const mockProfiles = [
-    {
-      id: 1,
-      name: "Dr. Evelyn Reed",
-      role: "Professor, Computer Science",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuAVusTyWqc7DI9AudhLe2pI0pZIOWvzb8CzyrHToin7EwbfbtUYdSzo0sam9KPaO07tvw3NVZ2BxCvm5-IQO-uScCFn_aQEAO0zMe_GbGVwEzn2q9XgfE3GEbXRfWjK4pGhFYa0DRxcfCMXcEiTOtiUEQiDTFQ5nH7osmBLtFZe8Hb5o7A8p4pE-pjSisPsDdkw1FdnuE6qJWkfcz8uTOh-BfP8_p_2EgOx2ANY8EDZI492k97RqvbzcKzmHSziogxIVtMxFnVwO4Y",
-      skills: ["Machine Learning", "AI Ethics"],
-      interests: ["Machine Learning", "AI Ethics"],
-      buttonType: "message",
-    },
-    {
-      id: 2,
-      name: "Liam Chen",
-      role: "Student, Business Analytics",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDpxGZ5n1NE2_J73JN_LSrjev-FpYakzvIIzjrkcmpytQOGxn2ceFJgTBvkTrTqH2gz2b4TbeGvQ1nC_fxrOPKdRl-7zTg1j2UNEQ_3C0dhSVGArOLDPIr3LlkG01sMtJiCtPVBdCDW62yucwruUF9coN5h5P5wsP2hbu7cTMsj8ywZsWQ5157Vyemdt1X2I5mfhGDdYkrclA0V9UwX3uF63sIV3VXB2xnmwgmnorjbM8ScMwfc_Mq_NK0f12zT4-NaskUlYDwKRGQ",
-      skills: ["Data Visualization", "Finance Club"],
-      interests: ["Data Visualization", "Finance Club"],
-      buttonType: "connect",
-    },
-    {
-      id: 3,
-      name: "Aisha Khan",
-      role: "Student, Graphic Design",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDCh25_NkUXpUHdBFiDXrfCciMDW5mSubLmfL8VBtcSZlfZEldd10ok57tOcW4gmGOmmcDvHyARIBsEsYHhDEvpR0dvOHibjSaYLu6K5QQi9hVkXbG4aWPyKiI_vzxEryduWttEWMQnvJGOz8zKJl5CzG9j0o8-PGoD52fphRJ_8EPVuuBYptaOcPftNKxuQ0PPeIcPrFKxOuaVackVesfprtYrRKXr2rRgdOJiUM_OHxyrYwf85WrObqyQ3lbKZP2y6-9LoQJtGMg",
-      skills: ["UI/UX Design", "Art Society", "Webflow"],
-      interests: ["UI/UX Design", "Art Society", "Webflow"],
-      buttonType: "pending",
-    },
-    {
-      id: 4,
-      name: "Ben Carter",
-      role: "Mentor, Software Engineering",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBhCC5PBQI8wrKa1mKNaaNbWYgwigC7s6DvDH6wUMWZC8jhp3Urbe26o7992qKyOg2rDQ_sB3g6MukTIf7z4iC3HppKfRN0SG8Bl5GIF98aZQyzJUq_ToGQ_Jctl8YTVet9pifF0eGQVs4sIYCtb0E0A3IC1u0BWbnZQ60Buoxyi2ZDz4wivKRLzBpxxZ_f7H96mrcy2v8c6QdD_tDh1KAkoG0pFe_YTxHZyrbEV9OYfIrwN-hmNUXKuXfFQo74TivXr7omQROLSD8",
-      skills: ["React", "Node.js"],
-      interests: ["React", "Node.js"],
-      buttonType: "connect",
-    },
-    {
-      id: 5,
-      name: "Olivia Martinez",
-      role: "Student, Environmental Science",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCHgbUHBnQyTdROxnH_CTKu678wE9E__5KGwAIrAZLnCCY4k_H8toPmIwpTR_Svd1q8sXzNGC9BKtQZJEiCsf20KCCmuWGLH81z0xVgjsCzrEeXLFoyOWEWzZdOAaIuSbZKawoWLA8HcsfVJz97mLwwF1W2rHPAoKDq_m2pV1Xm3-Y2SS_Wd_pjjvibmSQYoveJ6l3duYu2KFhPgwhtCLLC0KJsbyx611slLhTxrFSRFEnkqw2dvhn-JocrFkS3hyq2_vSNBfpAfes",
-      skills: ["Sustainability", "GIS"],
-      interests: ["Sustainability", "GIS"],
-      buttonType: "message",
-    },
-    {
-      id: 6,
-      name: "Noah Patel",
-      role: "Student, Mechanical Engineering",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBAL2amqp-8mTOJ4Y0LZ31plIHmAuRkacqmJA-4Zg448GIHncjBjwZjuMbOHqfb0HYvLQTmrabmcGirPodUFT-tffpmJxFiKnjTAaT8CqsTt1o38WJkxLsEQWlqk3VetxvpGttEWjm6I76SkdyrJtVvKRyV7gz5xYFH_KBiJVpFokiqrBZdlYlj0kjphFlIjegDDCQ6eIfW6V7Isoa3HzqH7IG_mKNDrqh-FHpUs21ObkIOctkwlyHMgg3PRsYr4c7benbBSndtkU0",
-      skills: ["Robotics Club", "CAD"],
-      buttonType: "connect",
-      interests: ["Robotics Club", "CAD"],
-    },
-      ];
-      dispatch(setMembers(mockProfiles));
+    dispatch(fetchProfiles());
+  }, [dispatch]);
+
+  // Handle anchor navigation (#events, #mentoring, #societies)
+  useEffect(() => {
+    if (location.hash) {
+      setTimeout(() => {
+        const el = document.querySelector(location.hash);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
-  }, [dispatch, profiles.length]);
+  }, [location.hash, status]);
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      dispatch(setFilter({ field: 'search', value: val }));
+    }, 300);
+  };
+
+  const [searchTerm, setSearchTerm] = React.useState(filters.search);
+  // The onSearchType function is now redundant as handleSearchChange handles the debounce and state update.
+  // It can be removed or refactored if needed elsewhere.
+  const onSearchType = (e) => {
+    setSearchTerm(e.target.value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      dispatch(setFilter({ field: 'search', value: e.target.value }));
+    }, 300);
+  };
+
+  const handleFilterChange = (field, value) => {
+    dispatch(setFilter({ field, value }));
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      dispatch(setPage(page));
+      if (gridTopRef.current) {
+        gridTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  const isFilterActive = 
+    filters.search !== '' ||
+    filters.department !== 'All' ||
+    filters.interests !== 'All' ||
+    filters.society !== 'All' ||
+    filters.role !== 'All';
+
+  const roleColors = {
+    'Faculty': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    'Student': 'bg-green-500/20 text-green-400 border-green-500/30',
+    'Alumni': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    'Mentor': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  };
 
   return (
-    <div className="w-full bg-[#111814] text-[#c9d1d9] min-h-screen">
-      {/* Header */}
-      <header className="border-b border-white/10 px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 py-3 sticky top-0 bg-[#111814]/80 backdrop-blur-sm z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-white">
-            <svg
-              className="size-6 text-[#17cf63]"
-              fill="none"
-              viewBox="0 0 48 48"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M6 6H42L36 24L42 42H6L12 24L6 6Z"
-                fill="currentColor"
-              ></path>
-            </svg>
-            <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-              CampusConnect
-            </h2>
-          </div>
-          <div className="hidden md:flex flex-1 justify-end gap-8">
-            <button
-              onClick={() => navigate("/student/dashboard")}
-              className="text-white/80 hover:text-white text-sm font-medium transition-colors"
-            >
-              Dashboard
-            </button>
-            <a
-              className="text-white/80 hover:text-white text-sm font-medium transition-colors"
-              href="#events"
-            >
-              Events
-            </a>
-            <a
-              className="text-white/80 hover:text-white text-sm font-medium transition-colors"
-              href="#mentoring"
-            >
-              Mentoring
-            </a>
-            <a className="text-[#17cf63] text-sm font-bold" href="#network">
-              Network
-            </a>
-            <a
-              className="text-white/80 hover:text-white text-sm font-medium transition-colors"
-              href="#societies"
-            >
-              Societies
-            </a>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="flex items-center justify-center size-10 rounded-full hover:bg-white/10 transition-colors">
-              <span className="material-symbols-outlined text-white">
-                notifications
-              </span>
-              <div className="absolute top-2 right-2 size-2 bg-[#17cf63] rounded-full"></div>
-            </button>
-            <Avatar
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuATUMAiD-s_TXBoeMLvt0BjiSFPgWXNcK_j8shG5yPj0-FC_J-HXq0m_1Ug4FxW5EDTKqOKvXI-6HyGCPczz2hB3xqrY-dwkCtqtOJHyKqCkRSLbMQf7sOLx91OeQvcAroauVzgXtLUld1ROQIuMoikl-Dvj1PWMP7SSa_7gkT-xffz7JiUy2-qVrRVK3GCTYM04Y5txcVrH7uyoKvpW3Y434QBf7F0ZOLpwMdSJZAp0lQL17rzPRmWYi07wQHzU7Cc6LYpAg9ShuQ"
-              size="10"
-            />
-          </div>
-        </div>
-      </header>
+    <div className="flex h-screen bg-[#0d1117] overflow-hidden">
 
-      {/* Main Content */}
-      <main className="px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 py-8 flex justify-center">
-        <div className="w-full max-w-[960px]">
-          {/* Page Heading */}
-          <div className="mb-8">
-            <h1 className="text-white text-3xl sm:text-4xl font-black leading-tight tracking-[-0.033em]">
-              Academic Network Directory
-            </h1>
-            <p className="text-white/60 text-base font-normal mt-2">
-              Find and connect with students and faculty across campus.
-            </p>
-          </div>
 
-          {/* Search Bar */}
-          <div className="px-4 py-3 mb-6">
-            <label className="flex flex-col w-full">
-              <div className="flex w-full flex-1 items-stretch rounded-lg h-12 bg-[#1e241f]">
-                <div className="text-white/60 flex items-center justify-center pl-4 rounded-l-lg">
-                  <span className="material-symbols-outlined">search</span>
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border-none bg-transparent h-full placeholder:text-white/60 px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
-                  placeholder="Search by name, skill, or interest..."
-                />
-              </div>
-            </label>
-          </div>
+      <main className="flex-1 overflow-y-auto w-full custom-scrollbar">
+        <div className="p-4 sm:p-8 lg:p-12 max-w-7xl mx-auto space-y-8">
+          
+          {/* FIX [Bug 5]: Removed floating bell icon — sidebar already has Notifications link with badge */}
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#30363d] pb-6">
+            <div>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight">Academic Network</h1>
+              <p className="text-[#8b949e] mt-1">Connect with students, faculty, alumni, and mentors.</p>
+            </div>
+          </header>
 
-          {/* Filter Chips */}
-          <div className="flex gap-2 sm:gap-3 p-3 flex-wrap mb-6">
-            <button className="flex h-8 items-center justify-center gap-x-2 rounded-lg bg-[#1e241f] hover:bg-[#29312b] transition-colors pl-3 pr-2">
-              <p className="text-white text-sm font-medium">Department</p>
-              <span className="material-symbols-outlined text-white/80 text-sm">
-                arrow_drop_down
-              </span>
-            </button>
-            <button className="flex h-8 items-center justify-center gap-x-2 rounded-lg bg-[#1e241f] hover:bg-[#29312b] transition-colors pl-3 pr-2">
-              <p className="text-white text-sm font-medium">
-                Academic Interests
-              </p>
-              <span className="material-symbols-outlined text-white/80 text-sm">
-                arrow_drop_down
-              </span>
-            </button>
-            <button className="flex h-8 items-center justify-center gap-x-2 rounded-lg bg-[#1e241f] hover:bg-[#29312b] transition-colors pl-3 pr-2">
-              <p className="text-white text-sm font-medium">Societies</p>
-              <span className="material-symbols-outlined text-white/80 text-sm">
-                arrow_drop_down
-              </span>
-            </button>
-            <button className="flex h-8 items-center justify-center gap-x-2 rounded-lg bg-[#1e241f] hover:bg-[#29312b] transition-colors pl-3 pr-2">
-              <p className="text-white text-sm font-medium">Role</p>
-              <span className="material-symbols-outlined text-white/80 text-sm">
-                arrow_drop_down
-              </span>
-            </button>
-          </div>
+          {/* FIX [Bug 4]: Converted anchor links to navigate() calls with pill outline styling */}
+          <nav className="flex flex-wrap gap-2 text-sm font-medium">
+            <button onClick={() => navigate('/student/events')} className="px-4 py-2 border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-400 rounded-full text-sm font-medium transition-colors duration-200">Career Events</button>
+            <button onClick={() => navigate('/student/book-mentor')} className="px-4 py-2 border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-400 rounded-full text-sm font-medium transition-colors duration-200">Find a Mentor</button>
+            <button onClick={() => navigate('/student/societies')} className="px-4 py-2 border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-400 rounded-full text-sm font-medium transition-colors duration-200">Explore Societies</button>
+          </nav>
 
-          {/* Section Header & Sorting */}
-          <div className="flex justify-between items-center px-4 pb-2 pt-6 border-b border-white/10 mb-6">
-            <h3 className="text-white text-lg font-bold">Directory Results</h3>
-            <button className="flex items-center gap-1 text-white/80 hover:text-white transition-colors">
-              <span className="text-sm">
-                Sort by:{" "}
-                {selectedSort.charAt(0).toUpperCase() + selectedSort.slice(1)}
-              </span>
-              <span className="material-symbols-outlined text-sm">
-                expand_more
-              </span>
-            </button>
-          </div>
-
-          {/* Profile Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {profiles.map((profile) => (
-              <div
-                key={profile.id}
-                className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#151a16] p-5 hover:border-[#17cf63]/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <Avatar
-                    src={profile.image}
-                    size="16"
+          <section id="directory" className="pt-4" ref={gridTopRef}>
+            <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 shadow-sm mb-8">
+              
+              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                {/* Search Bar */}
+                <div className="relative w-full md:w-1/3">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e]">search</span>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={onSearchType}
+                    placeholder="Search by name, dept, or bio..."
+                    className="w-full bg-[#0d1117] border border-[#30363d] text-white pl-10 pr-10 py-2.5 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
                   />
-                  <div className="flex flex-col">
-                    <p className="text-white font-bold text-lg">
-                      {profile.name}
-                    </p>
-                    <p className="text-white/60 text-sm">{profile.role}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {profile.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="text-xs font-medium bg-[#17cf63]/20 text-[#17cf63] px-2.5 py-1 rounded-full"
+                  {searchTerm && (
+                    <button 
+                      onClick={() => {
+                        setSearchTerm('');
+                        dispatch(setFilter({ field: 'search', value: '' }));
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b949e] hover:text-white"
                     >
-                      {skill}
-                    </span>
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Clear Filters */}
+                {isFilterActive && (
+                  <button 
+                    onClick={() => {
+                      setSearchTerm('');
+                      dispatch(clearFilters());
+                    }}
+                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors shrink-0"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <select 
+                  value={filters.department}
+                  onChange={(e) => handleFilterChange('department', e.target.value)}
+                  className="bg-[#0d1117] border border-[#30363d] text-white py-2 px-3 rounded-lg focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                >
+                  {['All', 'Computer Science', 'Software Engineering', 'Business Administration', 'Electrical Engineering', 'Social Sciences', 'Fine Arts'].map(opt => (
+                    <option key={opt} value={opt}>{opt === 'All' ? 'All Departments' : opt}</option>
+                  ))}
+                </select>
+
+                <select 
+                  value={filters.interests}
+                  onChange={(e) => handleFilterChange('interests', e.target.value)}
+                  className="bg-[#0d1117] border border-[#30363d] text-white py-2 px-3 rounded-lg focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                >
+                  {['All', 'AI', 'Machine Learning', 'Web Development', 'Cloud Computing', 'Data Science', 'Cybersecurity', 'Mobile Development', 'UI/UX Design', 'Research'].map(opt => (
+                    <option key={opt} value={opt}>{opt === 'All' ? 'All Interests' : opt}</option>
+                  ))}
+                </select>
+
+                <select 
+                  value={filters.society}
+                  onChange={(e) => handleFilterChange('society', e.target.value)}
+                  className="bg-[#0d1117] border border-[#30363d] text-white py-2 px-3 rounded-lg focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                >
+                  <option value="All">All Societies</option>
+                  <option value="soc_1">Tech Society</option>
+                  <option value="soc_2">Debating Club</option>
+                  <option value="soc_3">Photography Society</option>
+                  <option value="soc_4">Robotics Club</option>
+                  <option value="soc_5">Entrepreneurship Society</option>
+                </select>
+
+                <select 
+                  value={filters.role}
+                  onChange={(e) => handleFilterChange('role', e.target.value)}
+                  className="bg-[#0d1117] border border-[#30363d] text-white py-2 px-3 rounded-lg focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                >
+                  {['All', 'Student', 'Faculty', 'Alumni', 'Mentor'].map(opt => (
+                    <option key={opt} value={opt}>{opt === 'All' ? 'All Roles' : opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sort By Dropdown */}
+              <div className="mt-6 flex justify-start items-center gap-3">
+                <span className="text-sm font-medium text-[#8b949e] shrink-0">Sort By:</span>
+                <select 
+                  value={filters.sortBy}
+                  onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                  className="bg-[#0d1117] border border-[#30363d] text-white py-1.5 px-3 rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                >
+                  <option value="name">Name A-Z</option>
+                  <option value="role">Role</option>
+                  <option value="department">Department</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Profile Grid */}
+            {status === 'loading' ? (
+              <div className="flex justify-center items-center py-20">
+                <span className="material-symbols-outlined text-4xl text-[#8b949e] animate-spin">refresh</span>
+              </div>
+            ) : profiles.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                  {profiles.map(profile => (
+                    <div key={profile.id} className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 flex flex-col hover:border-blue-500/30 transition-all shadow-sm">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="relative">
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold border-2 ${
+                            profile.role === 'Faculty' ? 'bg-blue-900 border-blue-500 text-blue-200' :
+                            profile.role === 'Student' ? 'bg-green-900 border-green-500 text-green-200' :
+                            profile.role === 'Alumni' ? 'bg-orange-900 border-orange-500 text-orange-200' :
+                            'bg-purple-900 border-purple-500 text-purple-200'
+                          }`}>
+                            {getInitials(profile.name)}
+                          </div>
+                          <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[#161b22] ${profile.isOnline ? 'bg-green-500' : 'bg-[#8b949e]'}`}></span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-white leading-tight">{profile.name}</h3>
+                          <p className="text-sm text-[#8b949e] mt-1">{profile.department}</p>
+                          <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-bold border ${roleColors[profile.role] || 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                            {profile.role} {profile.year ? `· ${profile.year}` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-[#c9d1d9] mb-4 line-clamp-2 min-h-[40px]">
+                        {profile.bio}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5 mb-6 mt-auto">
+                        {profile.academicInterests?.slice(0, 2).map((interest, idx) => (
+                          <span key={idx} className="bg-[#21262d] border border-[#30363d] px-2 py-1 rounded text-xs text-[#8b949e]">
+                            {interest}
+                          </span>
+                        ))}
+                        {profile.academicInterests?.length > 2 && (
+                          <span className="bg-[#21262d] border border-[#30363d] px-2 py-1 rounded text-xs text-[#8b949e]">
+                            +{profile.academicInterests.length - 2} more
+                          </span>
+                        )}
+                        {profile.societies?.slice(0, 1).map((soc, idx) => {
+                          const nameMap = { soc_1: 'Tech Soc', soc_2: 'Debating', soc_3: 'Photography', soc_4: 'Robotics', soc_5: 'Business' };
+                          return (
+                            <span key={idx} className="bg-purple-500/10 border border-purple-500/20 px-2 py-1 rounded text-xs text-purple-400">
+                              {nameMap[soc] || soc}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      {/* Connection Buttons */}
+                      <div className="mt-auto">
+                        {profile.connectionStatus === 'none' && (
+                          <button
+                            onClick={() => dispatch(sendConnectionRequest(profile.id))}
+                            disabled={actionLoading[profile.id]}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex justify-center items-center h-10 transition-colors disabled:opacity-70"
+                          >
+                            {actionLoading[profile.id] ? (
+                              <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
+                            ) : (
+                              'Connect'
+                            )}
+                          </button>
+                        )}
+                        
+                        {profile.connectionStatus === 'pending' && (
+                          <button
+                            disabled
+                            className="w-full bg-[#21262d] text-[#8b949e] border border-[#30363d] font-bold py-2 px-4 rounded-lg flex justify-center items-center h-10 cursor-not-allowed"
+                          >
+                            Pending
+                          </button>
+                        )}
+
+                        {profile.connectionStatus === 'connected' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => navigate(`/student/academic-network/${profile.id}`)}
+                              className="flex-1 bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] border border-[#30363d] font-bold py-2 rounded-lg flex justify-center items-center h-10 transition-colors text-sm"
+                            >
+                              Profile
+                            </button>
+                            <button
+                              onClick={() => navigate('/student/messages', { state: { openChatWith: profile.id } })}
+                              className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white font-bold py-2 rounded-lg flex justify-center items-center h-10 transition-colors text-sm gap-1.5"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">chat</span>
+                              Message
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-lg h-9 px-3 bg-white/5 text-white/90 hover:bg-white/10 text-sm font-bold transition-colors">
-                    <span className="material-symbols-outlined text-sm">
-                      person
-                    </span>
-                    <span>View Profile</span>
-                  </button>
-                  {profile.buttonType === "message" && (
-                    <button className="flex w-full items-center justify-center gap-2 rounded-lg h-9 px-3 bg-[#17cf63] text-[#111814] hover:opacity-90 text-sm font-bold transition-opacity">
-                      <span className="material-symbols-outlined text-sm">
-                        send
-                      </span>
-                      <span>Message</span>
-                    </button>
-                  )}
-                  {profile.buttonType === "connect" && (
-                    <button className="flex w-full items-center justify-center gap-2 rounded-lg h-9 px-3 border border-[#17cf63] text-[#17cf63] hover:bg-[#17cf63]/10 text-sm font-bold transition-colors">
-                      <span className="material-symbols-outlined text-sm">
-                        person_add
-                      </span>
-                      <span>Connect</span>
-                    </button>
-                  )}
-                  {profile.buttonType === "pending" && (
-                    <button className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg h-9 px-3 bg-white/10 text-white/60 text-sm font-bold">
-                      <span className="material-symbols-outlined text-sm">
-                        hourglass_top
-                      </span>
-                      <span>Pending</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
 
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-2 p-8 mt-8">
-            <button className="flex items-center justify-center size-9 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors">
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button className="flex items-center justify-center size-9 rounded-lg bg-[#17cf63] text-[#111814] font-bold text-sm">
-              1
-            </button>
-            <button className="flex items-center justify-center size-9 rounded-lg hover:bg-white/10 text-white/60 hover:text-white text-sm">
-              2
-            </button>
-            <button className="flex items-center justify-center size-9 rounded-lg hover:bg-white/10 text-white/60 hover:text-white text-sm">
-              3
-            </button>
-            <span className="text-white/60">...</span>
-            <button className="flex items-center justify-center size-9 rounded-lg hover:bg-white/10 text-white/60 hover:text-white text-sm">
-              8
-            </button>
-            <button className="flex items-center justify-center size-9 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors">
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
-          </div>
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-8">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="w-10 h-10 rounded-lg border border-[#30363d] flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-10 h-10 rounded-lg border font-medium flex items-center justify-center transition-colors ${
+                          currentPage === page
+                            ? 'bg-[#238636] border-[#2ea043] text-white'
+                            : 'bg-[#0d1117] border-[#30363d] text-[#8b949e] hover:text-white hover:bg-[#21262d]'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="w-10 h-10 rounded-lg border border-[#30363d] flex items-center justify-center text-[#8b949e] hover:text-white hover:bg-[#21262d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="material-symbols-outlined">chevron_right</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-24 px-6 text-center border border-[#30363d] rounded-xl bg-[#161b22]">
+                <span className="material-symbols-outlined text-6xl text-[#8b949e] mb-4">search_off</span>
+                <h3 className="text-xl font-bold text-white mb-2">No matching profiles found</h3>
+                <p className="text-[#8b949e] max-w-md">
+                  Try adjusting your filters or search terms to see more results from the Campus Connect network.
+                </p>
+                <button
+                  onClick={() => { setSearchTerm(''); dispatch(clearFilters()); }}
+                  className="mt-6 px-6 py-2 bg-[#21262d] border border-[#30363d] rounded-lg text-white hover:bg-[#30363d] transition-colors font-medium"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* FIX [Bug 4]: Removed dummy anchor sections — navigation is now via navigate() */}
+
         </div>
       </main>
     </div>

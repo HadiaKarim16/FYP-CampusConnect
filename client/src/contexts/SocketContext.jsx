@@ -1,59 +1,51 @@
-// src/contexts/SocketContext.js
-// Socket Context - manages WebSocket connection and real-time data
-
+// src/contexts/SocketContext.jsx
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 
 export const SocketContext = createContext(null);
 
-export function SocketProvider({ children, socketUrl }) {
+export function SocketProvider({ children, socketUrl = 'http://localhost:8000' }) {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
-  const [listeners, setListeners] = useState({});
   const socketRef = useRef(null);
 
   // Initialize socket connection
   useEffect(() => {
     if (!socketUrl) return;
 
-    const connectSocket = () => {
-      try {
-        // For demo purposes, we'll simulate socket connection
-        // In production, use actual WebSocket or Socket.IO
-        const mockSocket = {
-          connected: true,
-          emit: (event, data) => {
-            // Mock emit
-          },
-          on: (event, callback) => {
-            setListeners((prev) => ({
-              ...prev,
-              [event]: callback,
-            }));
-          },
-          off: (event) => {
-            setListeners((prev) => {
-              const updated = { ...prev };
-              delete updated[event];
-              return updated;
-            });
-          },
-          disconnect: () => {
-            setIsConnected(false);
-          },
-        };
+    try {
+      // Connect specifically with credentials so cookies (JWTs) are sent
+      const newSocket = io(socketUrl, {
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
 
-        socketRef.current = mockSocket;
-        setSocket(mockSocket);
+      newSocket.on('connect', () => {
         setIsConnected(true);
         setError(null);
-      } catch (err) {
+        console.log('[Socket] Connected to backend on', socketUrl);
+      });
+
+      newSocket.on('disconnect', (reason) => {
+        setIsConnected(false);
+        console.log('[Socket] Disconnected:', reason);
+      });
+
+      newSocket.on('connect_error', (err) => {
         setError(err.message);
         setIsConnected(false);
-      }
-    };
+        console.error('[Socket] Connection error:', err.message);
+      });
 
-    connectSocket();
+      socketRef.current = newSocket;
+      setSocket(newSocket);
+    } catch (err) {
+      setError(err.message);
+      setIsConnected(false);
+    }
 
     return () => {
       if (socketRef.current) {
@@ -63,9 +55,13 @@ export function SocketProvider({ children, socketUrl }) {
   }, [socketUrl]);
 
   const emit = useCallback(
-    (event, data) => {
+    (event, data, callback) => {
       if (socketRef.current && isConnected) {
-        socketRef.current.emit(event, data);
+        if (callback) {
+          socketRef.current.emit(event, data, callback);
+        } else {
+          socketRef.current.emit(event, data);
+        }
       }
     },
     [isConnected]
@@ -90,15 +86,24 @@ export function SocketProvider({ children, socketUrl }) {
     }
   }, []);
 
+  const joinChat = useCallback((chatId) => {
+    emit('chat:join', { chatId });
+  }, [emit]);
+
+  const leaveChat = useCallback((chatId) => {
+    emit('chat:leave', { chatId });
+  }, [emit]);
+
   const value = {
     socket,
     isConnected,
     error,
-    listeners,
     emit,
     on,
     off,
     disconnect,
+    joinChat,
+    leaveChat
   };
 
   return (
