@@ -64,7 +64,7 @@ router
     .get(checkUser, getCompetitions)
     .post(
         verifyJWT,
-        authorize("society_head", "admin"),
+        authorize("society_head", "admin", "student"),
         upload.single("coverImage"),
         createCompetition
     );

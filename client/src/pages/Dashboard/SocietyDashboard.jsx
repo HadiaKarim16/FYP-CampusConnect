@@ -27,9 +27,8 @@ export default function SocietyDashboard() {
 
   const displayName =
     user?.profile?.displayName ||
-    `${user?.profile?.firstName || ""} ${
-      user?.profile?.lastName || ""
-    }`.trim() ||
+    `${user?.profile?.firstName || ""} ${user?.profile?.lastName || ""
+      }`.trim() ||
     user?.email?.split("@")[0] ||
     "Society Head";
 
@@ -311,10 +310,10 @@ export default function SocietyDashboard() {
             {/* Society Analytics Widget */}
             <AnalyticsWidget
               title="Society Analytics"
-              options={["All Societies", "Tech Club", "Entrepreneurs"]}
+              options={["All Societies", ...societies.map(s => s.name)]}
               statLabel="Total Members"
-              statValue="1,284"
-              trendLabel="+112 this month"
+              statValue={societies.reduce((sum, s) => sum + (s.members?.length || s.memberCount || 0), 0).toLocaleString()}
+              trendLabel={`${societies.length} active societ${societies.length === 1 ? 'y' : 'ies'}`}
               onOpen={() => navigate("/society/analytics")}
             />
           </div>

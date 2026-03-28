@@ -31,7 +31,7 @@ router
   .route("/create-society")
   .post(
     verifyJWT,
-    authorize("society_head", "admin"),
+    authorize("society_head", "admin", "student"),
     upload.single("logo"),
     createSociety
   );

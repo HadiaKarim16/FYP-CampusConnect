@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import { useNotification } from "@/contexts/NotificationContext.jsx";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +17,7 @@ export default function EditProfile() {
   const { showSuccess, showError } = useNotification();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
+
   const [campuses, setCampuses] = useState([]);
 
   const [form, setForm] = useState({
@@ -29,7 +29,7 @@ export default function EditProfile() {
     campusId: user?.campusId || userProfile?.campusId || "",
   });
 
-  useState(() => {
+  useEffect(() => {
     const fetchCampuses = async () => {
       try {
         const res = await getAllCampuses();
@@ -72,8 +72,8 @@ export default function EditProfile() {
 
       // Update user in AuthContext with fresh data
       if (updateUser) {
-        updateUser({ 
-          name: form.name, 
+        updateUser({
+          name: form.name,
           email: form.email,
           campusId: form.campusId
         });
