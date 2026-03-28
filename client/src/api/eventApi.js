@@ -1,114 +1,178 @@
 import api from './axios';
 
 /**
- * Event API functions
+ * Event / Competition API functions
+ * Backend mounts the event engine at: /api/v1/competitions
  */
 
-// Get all events
+// Get all competitions/events
 export const getAllEvents = async (filters = {}) => {
   try {
-    const response = await api.get('/events', { params: filters });
+    const response = await api.get('/competitions', { params: filters });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get event by ID
+// Get competition by ID
 export const getEventById = async (eventId) => {
   try {
-    const response = await api.get(`/events/${eventId}`);
+    const response = await api.get(`/competitions/${eventId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Create new event
+// Create new competition (society_head or admin)
 export const createEvent = async (eventData) => {
   try {
-    const response = await api.post('/events', eventData);
+    const response = await api.post('/competitions', eventData, {
+      headers: eventData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Update event
+// Update competition
 export const updateEvent = async (eventId, eventData) => {
   try {
-    const response = await api.patch(`/events/${eventId}`, eventData);
+    const response = await api.patch(`/competitions/${eventId}`, eventData, {
+      headers: eventData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Delete event
+// Delete competition
 export const deleteEvent = async (eventId) => {
   try {
-    const response = await api.delete(`/events/${eventId}`);
+    const response = await api.delete(`/competitions/${eventId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Register for event
-export const registerForEvent = async (eventId) => {
+// Transition event state (e.g. draft -> registration -> ongoing)
+export const transitionEventState = async (eventId, newStatus, cancellationReason) => {
   try {
-    const response = await api.post(`/events/${eventId}/register`);
+    const response = await api.patch(`/competitions/${eventId}/transition`, {
+      status: newStatus,
+      cancellationReason,
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Unregister from event
-export const unregisterFromEvent = async (eventId) => {
+// Get event announcements
+export const getAnnouncements = async (eventId) => {
   try {
-    const response = await api.delete(`/events/${eventId}/register`);
+    const response = await api.get(`/competitions/${eventId}/announcements`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get event attendees
-export const getEventAttendees = async (eventId) => {
+// Post event announcement
+export const postAnnouncement = async (eventId, content) => {
   try {
-    const response = await api.get(`/events/${eventId}/attendees`);
+    const response = await api.post(`/competitions/${eventId}/announcements`, { content });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get user's registered events
-export const getUserEvents = async (userId) => {
+// Get leaderboard
+export const getLeaderboard = async (eventId) => {
   try {
-    const response = await api.get(`/users/${userId}/events`);
+    const response = await api.get(`/competitions/${eventId}/leaderboard`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get upcoming events
-export const getUpcomingEvents = async (limit = 10) => {
+// ─── Teams ────────────────────────────────────────────────────────────────────
+
+export const getTeams = async (eventId) => {
   try {
-    const response = await api.get('/events/upcoming', { params: { limit } });
+    const response = await api.get(`/competitions/${eventId}/teams`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Search events
-export const searchEvents = async (query, filters = {}) => {
+export const createTeam = async (eventId, teamData) => {
   try {
-    const response = await api.get('/events/search', {
-      params: { q: query, ...filters },
+    const response = await api.post(`/competitions/${eventId}/teams`, teamData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getMyTeam = async (eventId) => {
+  try {
+    const response = await api.get(`/competitions/${eventId}/teams/my`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const joinTeam = async (eventId, teamId) => {
+  try {
+    const response = await api.post(`/competitions/${eventId}/teams/${teamId}/join`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const leaveTeam = async (eventId, teamId) => {
+  try {
+    const response = await api.post(`/competitions/${eventId}/teams/${teamId}/leave`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// ─── Submissions ──────────────────────────────────────────────────────────────
+
+export const getMySubmission = async (eventId) => {
+  try {
+    const response = await api.get(`/competitions/${eventId}/submissions/my`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const upsertSubmission = async (eventId, submissionData) => {
+  try {
+    const response = await api.post(`/competitions/${eventId}/submissions`, submissionData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const addFileToSubmission = async (eventId, formData) => {
+  try {
+    const response = await api.post(`/competitions/${eventId}/submissions/files`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   } catch (error) {

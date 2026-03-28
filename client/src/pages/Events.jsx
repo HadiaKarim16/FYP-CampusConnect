@@ -1,116 +1,546 @@
-import { useEffect } from "react";
-import { Link } from "react-router-dom";
+// FIX [Bug 1]: Removed hardcoded events array — now wired to Redux eventsSlice via fetchEvents thunk
+// FIX [Bug 2]: Uses liveStatus (upcoming/ongoing/completed) derived in eventsApi.getAll() for correct button states
+// FIX [Bug 3]: Register buttons have auth check, loading spinner, cancel toggle, and post-login intent
+// FIX [Bug 4]: Added Upcoming / Past / All tabs with count badges
+// FIX [Bug 5]: Added search bar and tag filter pills
+// FIX [Bug 6]: Event card titles and "View Details" links navigate to /student/events (or open login modal)
+// FIX [Bug 7]: Loading skeletons and error state with retry button
+
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { selectAllEvents, setEvents } from "../redux/slices/eventSlice";
-import SectionHeader from "../components/common/SectionHeader";
-import EventCard from "../components/common/EventCard";
+import { useAuth } from "@/contexts/AuthContext.jsx";
+import { useNotification } from "../contexts/NotificationContext";
+import {
+  fetchEvents,
+  registerForEvent,
+  cancelEventRegistration,
+  selectUpcomingEvents,
+  selectOngoingEvents,
+  selectPastEvents,
+} from "../redux/slices/eventsSlice";
 import CTACard from "../components/common/CTACard";
+import LoginPromptModal from "../components/modals/LoginPromptModal";
 
 export default function Events() {
   const dispatch = useDispatch();
-  const events = useSelector(selectAllEvents);
+  const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth();
+  const { addNotification } = useNotification();
 
-  // Initialize mock events data in Redux
+  // FIX [Bug 1]: Read from Redux (state.eventsLegacy — mapped in rootReducer)
+  const { status, error } = useSelector((state) => state.eventsLegacy || {});
+  const actionLoading = useSelector(
+    (state) => state.eventsLegacy?.actionLoading ?? {}
+  );
+  const upcomingEvents = useSelector(selectUpcomingEvents);
+  const ongoingEvents = useSelector(selectOngoingEvents);
+  const pastEvents = useSelector(selectPastEvents);
+
+  // FIX [Bug 4]: Tabs
+  const [activeTab, setActiveTab] = useState("upcoming");
+
+  // FIX [Bug 5]: Search + tag filter
+  const [search, setSearch] = useState("");
+  const [activeTag, setActiveTag] = useState("All");
+
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // FIX [Bug 1]: Fetch events from mockStorage on mount
   useEffect(() => {
-    if (events.length === 0) {
-      dispatch(setEvents([
-        {
-          id: 1,
-          title: "Tech Summit 2024",
-          date: "March 15, 2024",
-          time: "10:00 AM - 5:00 PM",
-          location: "Main Auditorium",
-          description:
-            "Join us for a day-long summit featuring tech talks, workshops, and networking opportunities.",
-          attendees: 342,
-        },
-        {
-          id: 2,
-          title: "AI & Machine Learning Workshop",
-          date: "March 20, 2024",
-          time: "2:00 PM - 4:00 PM",
-          location: "Room 301",
-          description:
-            "Hands-on workshop on implementing ML algorithms with Python.",
-          attendees: 85,
-        },
-        {
-          id: 3,
-          title: "Career Fair 2024",
-          date: "March 28, 2024",
-          time: "1:00 PM - 6:00 PM",
-          location: "Student Center",
-          description:
-            "Connect with top companies and explore career opportunities.",
-          attendees: 520,
-        },
-        {
-          id: 4,
-          title: "Web Development Bootcamp",
-          date: "April 5, 2024",
-          time: "9:00 AM - 1:00 PM",
-          location: "Lab Building",
-          description:
-            "Learn modern web development with React, Node.js, and more.",
-          attendees: 156,
-        },
-        {
-          id: 5,
-          title: "Leadership Summit",
-          date: "April 12, 2024",
-          time: "10:00 AM - 3:00 PM",
-          location: "Ballroom",
-          description:
-            "Develop leadership skills and connect with student leaders.",
-          attendees: 203,
-        },
-        {
-          id: 6,
-          title: "Startup Pitch Night",
-          date: "April 19, 2024",
-          time: "6:00 PM - 8:00 PM",
-          location: "Innovation Hub",
-          description: "Watch students pitch their startup ideas to investors.",
-          attendees: 127,
-        },
-      ]));
+    dispatch(fetchEvents());
+  }, [dispatch]);
+
+  // FIX [Bug 3]: Post-login intent — auto-register after login redirect
+  useEffect(() => {
+    if (isAuthenticated) {
+      const action = sessionStorage.getItem("postLoginAction");
+      const eventId = sessionStorage.getItem("postLoginEventId");
+      if (action === "registerEvent" && eventId) {
+        sessionStorage.removeItem("postLoginAction");
+        sessionStorage.removeItem("postLoginEventId");
+        dispatch(registerForEvent(eventId));
+      }
     }
-  }, [dispatch, events.length]);
+  }, [isAuthenticated, dispatch]);
+
+  // FIX [Bug 4]: Compute tab data
+  const activeTabEvents = useMemo(() => {
+    if (activeTab === "upcoming") return [...ongoingEvents, ...upcomingEvents];
+    if (activeTab === "past") return pastEvents;
+    return [...ongoingEvents, ...upcomingEvents, ...pastEvents];
+  }, [activeTab, upcomingEvents, ongoingEvents, pastEvents]);
+
+  // FIX [Bug 5]: Derive unique tags across all events
+  const allTags = useMemo(() => {
+    const all = [...upcomingEvents, ...ongoingEvents, ...pastEvents];
+    const tagSet = new Set();
+    all.forEach((e) => (e.tags || []).forEach((t) => tagSet.add(t)));
+    return ["All", ...Array.from(tagSet).sort()];
+  }, [upcomingEvents, ongoingEvents, pastEvents]);
+
+  // FIX [Bug 5]: Combined filter logic
+  const displayedEvents = useMemo(() => {
+    return activeTabEvents
+      .filter((e) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (
+          (e.title || "").toLowerCase().includes(q) ||
+          (e.description || "").toLowerCase().includes(q) ||
+          (e.location || "").toLowerCase().includes(q)
+        );
+      })
+      .filter((e) => {
+        if (activeTag === "All") return true;
+        return (e.tags || []).includes(activeTag);
+      });
+  }, [activeTabEvents, search, activeTag]);
+
+  // FIX [Bug 3]: Register handler with auth check
+  const handleRegister = (eventId) => {
+    if (!isAuthenticated) {
+      sessionStorage.setItem("postLoginAction", "registerEvent");
+      sessionStorage.setItem("postLoginEventId", eventId);
+      setShowLoginModal(true);
+      return;
+    }
+    dispatch(registerForEvent(eventId));
+  };
+
+  // FIX [Bug 3]: Cancel handler with confirmation
+  const handleCancel = (eventId) => {
+    if (window.confirm("Cancel your registration for this event?")) {
+      dispatch(cancelEventRegistration(eventId));
+    }
+  };
+
+  // FIX [Bug 6]: Detail navigation with auth check
+  const handleViewDetails = (eventId) => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    navigate("/student/events");
+  };
+
+  // Existing Create Event handler (confirmed working)
+  const handleCreateEvent = () => {
+    // CASE 1 — Not logged in at all
+    if (!isAuthenticated) {
+      sessionStorage.setItem("postLoginRedirect", "/events/create");
+      setShowLoginModal(true);
+      return;
+    }
+
+    // CASE 2 & 3 — Logged in as society_head or admin (the ONLY roles that can create)
+    if (role === "society_head" || role === "admin") {
+      navigate("/events/create");
+      return;
+    }
+
+    // CASE 4 — Logged in but wrong role (student, mentor, alumni)
+    // Show informational toast — do NOT navigate to access-denied
+    addNotification({
+      type: "info",
+      title: "Society Head Access Required",
+      message:
+        "Only registered Society Heads can create events. Become a Society Head to unlock this feature.",
+    });
+  };
+
+  // FIX [Bug 2]: Format date from ISO string
+  const formatDate = (isoStr) => {
+    if (!isoStr) return "";
+    const d = new Date(isoStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+  const formatTime = (isoStr) => {
+    if (!isoStr) return "";
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  // FIX [Bug 2]: Render action button per event status
+  const renderActionButton = (event) => {
+    const isLoading = actionLoading[event._id];
+    const { liveStatus, isRegistered } = event;
+
+    // Spinner SVG
+    const spinner = (
+      <svg
+        className="animate-spin h-4 w-4"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
+      </svg>
+    );
+
+    if (isLoading) {
+      return (
+        <button
+          disabled
+          className="h-8 px-4 text-xs font-semibold rounded-lg bg-[#238636] text-white flex items-center justify-center gap-2 opacity-70"
+        >
+          {spinner}
+        </button>
+      );
+    }
+
+    if (liveStatus === "completed") {
+      return (
+        <button
+          disabled
+          className="h-8 px-4 text-xs font-semibold rounded-lg bg-[#30363d] text-[#8b949e] cursor-not-allowed"
+        >
+          Ended
+        </button>
+      );
+    }
+
+    if (liveStatus === "ongoing") {
+      if (isRegistered) {
+        return (
+          <button
+            onClick={() =>
+              window.open(event.meetingLink || "#", "_blank")
+            }
+            className="h-8 px-4 text-xs font-semibold rounded-lg bg-[#1f6feb] hover:bg-[#388bfd] text-white transition-colors"
+          >
+            Join Now
+          </button>
+        );
+      }
+      return (
+        <button
+          disabled
+          className="h-8 px-4 text-xs font-semibold rounded-lg bg-[#30363d] text-[#8b949e] cursor-not-allowed"
+        >
+          Registration Closed
+        </button>
+      );
+    }
+
+    // liveStatus === 'upcoming'
+    if (isRegistered) {
+      return (
+        <button
+          onClick={() => handleCancel(event._id)}
+          className="h-8 px-4 text-xs font-semibold rounded-lg border border-[#238636] text-[#3fb950] hover:bg-[#238636]/10 transition-colors"
+        >
+          Registered ✓
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => handleRegister(event._id)}
+        className="h-8 px-4 text-xs font-semibold rounded-lg bg-[#238636] hover:bg-[#2ea043] text-white transition-colors"
+      >
+        Register
+      </button>
+    );
+  };
+
+  // FIX [Bug 2]: Status badge per event
+  const renderStatusBadge = (liveStatus) => {
+    if (liveStatus === "upcoming") {
+      return (
+        <span className="absolute top-3 right-3 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-[#238636]/20 text-[#3fb950] border border-[#238636]/40">
+          Upcoming
+        </span>
+      );
+    }
+    if (liveStatus === "ongoing") {
+      return (
+        <span className="absolute top-3 right-3 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-[#1f6feb]/20 text-[#58a6ff] border border-[#1f6feb]/40">
+          Live Now 🔴
+        </span>
+      );
+    }
+    return (
+      <span className="absolute top-3 right-3 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-[#30363d] text-[#8b949e] border border-[#484f58]">
+        Ended
+      </span>
+    );
+  };
+
+  // Tab config
+  const tabs = [
+    {
+      key: "upcoming",
+      label: "Upcoming",
+      count: upcomingEvents.length + ongoingEvents.length,
+    },
+    { key: "past", label: "Past", count: pastEvents.length },
+    {
+      key: "all",
+      label: "All",
+      count:
+        upcomingEvents.length + ongoingEvents.length + pastEvents.length,
+    },
+  ];
 
   return (
     <div className="w-full bg-[#0d1117] text-[#e6edf3] min-h-screen py-10 px-4 sm:px-10 md:px-20 lg:px-40">
       <div className="max-w-[960px] mx-auto">
         {/* Header */}
-        <div className="mb-10">
-          <SectionHeader
-            title="Campus Events"
-            subtitle="Discover and join exciting events happening on campus. From tech talks to social gatherings, find what interests you."
-            align="left"
-          />
+        <div className="mb-8">
+          <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
+            Campus Events
+          </h1>
+          <p className="text-[#8b949e] text-base mt-2">
+            Discover and join exciting events happening on campus. From tech
+            talks to social gatherings, find what interests you.
+          </p>
         </div>
 
-        {/* Events Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              title={event.title}
-              date={event.date}
-              time={event.time}
-              location={event.location}
-              description={event.description}
-              attendees={event.attendees}
-            />
+        {/* FIX [Bug 4]: Tab Navigation */}
+        <div className="flex gap-1 mb-6 border-b border-[#30363d]">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "text-[#3fb950] border-b-2 border-[#3fb950] font-semibold"
+                  : "text-[#8b949e] hover:text-white"
+              }`}
+            >
+              {tab.label}{" "}
+              <span
+                className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === tab.key
+                    ? "bg-[#238636]/20 text-[#3fb950]"
+                    : "bg-[#30363d] text-[#8b949e]"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
           ))}
         </div>
 
-        {/* CTA Section */}
+        {/* FIX [Bug 5]: Search Bar */}
+        <div className="mb-4">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e] text-[20px]">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Search events by title, description, or location..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm placeholder-[#484f58] focus:outline-none focus:border-[#3fb950] transition-colors"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b949e] hover:text-white"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  close
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* FIX [Bug 5]: Tag Filter Pills */}
+        <div className="flex gap-2 mb-2 overflow-x-auto pb-2 scrollbar-hide">
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setActiveTag(tag)}
+              className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                activeTag === tag
+                  ? "bg-[#238636] text-white"
+                  : "bg-[#161b22] text-[#8b949e] border border-[#30363d] hover:text-white hover:border-[#484f58]"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
+        {/* Result count */}
+        <p className="text-[#8b949e] text-xs mb-6">
+          Showing {displayedEvents.length} event
+          {displayedEvents.length !== 1 ? "s" : ""}
+        </p>
+
+        {/* FIX [Bug 7]: Loading State — skeleton cards */}
+        {status === "loading" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="rounded-xl bg-[#161b22] border border-[#30363d] h-64 animate-pulse"
+              >
+                <div className="p-5 space-y-4">
+                  <div className="h-5 bg-[#30363d] rounded w-3/4" />
+                  <div className="h-3 bg-[#30363d] rounded w-1/2" />
+                  <div className="h-3 bg-[#30363d] rounded w-2/3" />
+                  <div className="h-3 bg-[#30363d] rounded w-full" />
+                  <div className="h-3 bg-[#30363d] rounded w-full" />
+                  <div className="pt-6 flex justify-between items-center">
+                    <div className="h-3 bg-[#30363d] rounded w-20" />
+                    <div className="h-8 bg-[#30363d] rounded w-24" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* FIX [Bug 7]: Error State */}
+        {status === "failed" && (
+          <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+            <div className="w-20 h-20 bg-[#f85149]/10 rounded-full flex items-center justify-center border border-[#f85149]/30 mb-4">
+              <span className="material-symbols-outlined text-4xl text-[#f85149]">
+                warning
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Could not load events
+            </h3>
+            <p className="text-[#8b949e] mb-6">
+              {error || "Try refreshing the page."}
+            </p>
+            <button
+              onClick={() => dispatch(fetchEvents())}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded-lg font-medium text-sm transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                refresh
+              </span>
+              Refresh
+            </button>
+          </div>
+        )}
+
+        {/* Events Grid */}
+        {status !== "loading" && status !== "failed" && (
+          <>
+            {displayedEvents.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {displayedEvents.map((event) => (
+                  <div
+                    key={event._id}
+                    className="relative flex flex-col gap-3 p-5 rounded-xl border border-[#30363d] bg-[#161b22] hover:bg-[#21262d] transition-colors group"
+                  >
+                    {/* FIX [Bug 2]: Status Badge */}
+                    {renderStatusBadge(event.liveStatus)}
+
+                    {/* FIX [Bug 6]: Clickable Title */}
+                    <h2
+                      className="text-[#e6edf3] text-lg font-bold leading-tight cursor-pointer hover:text-[#3fb950] transition-colors pr-24"
+                      onClick={() => handleViewDetails(event._id)}
+                    >
+                      {event.title}
+                    </h2>
+
+                    <div className="flex flex-col gap-1.5 text-sm text-[#8b949e]">
+                      <p>
+                        📅 {formatDate(event.startTime)}{" "}
+                        {event.liveStatus !== "completed" &&
+                          `– ${formatDate(event.endTime)}`}
+                      </p>
+                      <p>⏰ {formatTime(event.startTime)}</p>
+                      <p>📍 {event.location}</p>
+                      {event.organizer && (
+                        <p>🏢 {event.organizer}</p>
+                      )}
+                    </div>
+
+                    <p className="text-[#8b949e] text-sm font-normal leading-normal line-clamp-2">
+                      {event.description}
+                    </p>
+
+                    {/* Tags */}
+                    {event.tags && event.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {event.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 text-[10px] rounded-full bg-[#30363d] text-[#8b949e]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-3 border-t border-[#30363d] mt-auto">
+                      {/* FIX [Bug 6]: View Details link */}
+                      <span
+                        onClick={() => handleViewDetails(event._id)}
+                        className="text-sm text-[#8b949e] hover:text-[#3fb950] transition-colors cursor-pointer"
+                      >
+                        View Details →
+                      </span>
+                      {/* FIX [Bug 2,3]: Dynamic action button */}
+                      {renderActionButton(event)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* FIX [Bug 4]: Empty state per tab */
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <span className="material-symbols-outlined text-5xl text-[#30363d] mb-4">
+                  event_busy
+                </span>
+                <h3 className="text-lg font-bold text-white mb-1">
+                  No{" "}
+                  {activeTab === "upcoming"
+                    ? "upcoming"
+                    : activeTab === "past"
+                    ? "past"
+                    : ""}{" "}
+                  events
+                  {search ? ` matching "${search}"` : ""}
+                </h3>
+                <p className="text-[#8b949e] text-sm">
+                  Check back soon for new events.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* CTA Section — confirmed working */}
         <CTACard
           title="Create an Event"
           description="Are you a society or organizer? Create an event on CampusConnect."
           buttonText="Create Event"
+          onButtonClick={handleCreateEvent}
         />
       </div>
+
+      {/* Login Prompt Modal */}
+      <LoginPromptModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        message="Please log in or create an account to register for events."
+      />
     </div>
   );
 }

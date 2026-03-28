@@ -1,16 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { createNewSociety } from "@/redux/slices/societySlice";
+import { useNotification } from "@/contexts/NotificationContext";
 import FormField from "@/components/common/FormField";
 import FormActions from "@/components/common/FormActions";
 
 const CATEGORIES = [
-  "Technology",
-  "Business",
-  "Arts",
-  "Sports",
-  "Science",
-  "Culture",
-  "Other",
+  { label: "Academic", value: "academic" },
+  { label: "Cultural", value: "cultural" },
+  { label: "Sports", value: "sports" },
+  { label: "Technology", value: "tech" },
+  { label: "Social", value: "social" },
+  { label: "Arts", value: "arts" },
+  { label: "Professional", value: "professional" },
+  { label: "Religious", value: "religious" },
+  { label: "Volunteer", value: "volunteer" },
+  { label: "Other", value: "other" },
 ];
 
 const LOGO_OPTIONS = [
@@ -28,17 +34,34 @@ const LOGO_OPTIONS = [
 
 export default function CreateSociety() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { showSuccess, showError } = useNotification();
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
+    tag: "",
     description: "",
-    category: "Technology",
+    category: "tech",
     logo: "🚀",
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Society created successfully!");
-    navigate("/society/dashboard");
+    if (!formData.name.trim() || !formData.tag.trim()) return;
+
+    setLoading(true);
+    try {
+      // Dispatch the action to create the society on the backend
+      await dispatch(createNewSociety(formData)).unwrap();
+      showSuccess("Society created successfully!");
+      navigate("/society/dashboard");
+    } catch (err) {
+      console.error(err);
+      showError(err?.message || "Failed to create society.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -82,20 +105,33 @@ export default function CreateSociety() {
           <div className="space-y-6">
             {/* Society Name */}
             <FormField
-              label="Society Name"
+              label="Society Name *"
               name="name"
               type="text"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              placeholder="Enter society name"
+              placeholder="e.g. Computer Science Society"
+              required
+            />
+
+            {/* Tag / Acronym */}
+            <FormField
+              label="Society Tag / Acronym (Unique) *"
+              name="tag"
+              type="text"
+              value={formData.tag}
+              onChange={(e) =>
+                setFormData({ ...formData, tag: e.target.value })
+              }
+              placeholder="e.g. CSS"
               required
             />
 
             {/* Description */}
             <FormField
-              label="Description"
+              label="Description *"
               name="description"
               type="textarea"
               value={formData.description}
@@ -119,8 +155,8 @@ export default function CreateSociety() {
               required
             >
               {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
                 </option>
               ))}
             </FormField>
@@ -128,7 +164,7 @@ export default function CreateSociety() {
             {/* Logo Selection */}
             <div>
               <label className="block text-sm font-medium text-[#9eb7a9] mb-2">
-                Choose Logo
+                Choose Emoji Icon
               </label>
               <div className="grid grid-cols-5 gap-3">
                 {LOGO_OPTIONS.map((emoji) => (
@@ -158,12 +194,17 @@ export default function CreateSociety() {
                     <h4 className="text-white font-bold text-lg">
                       {formData.name || "Society Name"}
                     </h4>
-                    <p className="text-[#9eb7a9] text-sm">
-                      {formData.category}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-2 py-0.5 bg-[#1dc964]/20 text-[#1dc964] text-xs font-bold rounded">
+                        {formData.tag?.toUpperCase() || "TAG"}
+                      </span>
+                      <p className="text-[#9eb7a9] text-sm">
+                        {formData.category}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <p className="text-[#9eb7a9] text-sm">
+                <p className="text-[#9eb7a9] text-sm break-words line-clamp-2">
                   {formData.description ||
                     "Society description will appear here..."}
                 </p>
@@ -176,9 +217,9 @@ export default function CreateSociety() {
                 onCancel={() => navigate("/society/dashboard")}
                 onSubmit={handleSubmit}
                 cancelText="Cancel"
-                submitText="Create Society"
+                submitText={loading ? "Creating..." : "Create Society"}
                 submitVariant="primary"
-                className=""
+                disabled={loading}
               />
             </div>
           </div>

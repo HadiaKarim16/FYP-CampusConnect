@@ -4,6 +4,8 @@ import { useNotification } from "@/contexts/NotificationContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { selectUserProfile, updateUserProfile } from "../../redux/slices/userSlice";
+import { updateAccountDetails, updateAcademicInfo } from "../../api/authApi";
+import { getAllCampuses } from "../../api/campusApi";
 import FormField from "@/components/common/FormField";
 import FormActions from "@/components/common/FormActions";
 import Card from "../../components/common/Card";
@@ -15,6 +17,8 @@ export default function EditProfile() {
   const { showSuccess, showError } = useNotification();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  
+  const [campuses, setCampuses] = useState([]);
 
   const [form, setForm] = useState({
     name: user?.name || userProfile?.name || "",
@@ -22,7 +26,20 @@ export default function EditProfile() {
     department: userProfile?.department || "",
     year: userProfile?.year || "",
     bio: userProfile?.bio || "",
+    campusId: user?.campusId || userProfile?.campusId || "",
   });
+
+  useState(() => {
+    const fetchCampuses = async () => {
+      try {
+        const res = await getAllCampuses();
+        setCampuses(res.data?.campuses || []);
+      } catch (err) {
+        console.error("Failed to fetch campuses:", err);
+      }
+    };
+    fetchCampuses();
+  }, []);
 
   const [loading, setLoading] = useState(false);
 
@@ -36,21 +53,43 @@ export default function EditProfile() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the real backend API to persist the profile update
+      await updateAccountDetails({
+        displayName: form.name,
+        firstName: form.name.split(' ')[0],
+        lastName: form.name.split(' ').slice(1).join(' '),
+        bio: form.bio,
+        campusId: form.campusId,
+      });
 
-      // Update user in AuthContext
+      // Also persist academic updates (department/year)
+      if (form.department || form.year) {
+        await updateAcademicInfo({
+          department: form.department,
+          semester: form.year === "graduate" ? 0 : parseInt(form.year) * 2,
+        });
+      }
+
+      // Update user in AuthContext with fresh data
       if (updateUser) {
-        updateUser({ name: form.name, email: form.email });
+        updateUser({ 
+          name: form.name, 
+          email: form.email,
+          campusId: form.campusId
+        });
       }
 
       // Update Redux store
       dispatch(updateUserProfile(form));
 
       showSuccess("Profile updated successfully!");
-      setTimeout(() => navigate("/profile/view"), 500);
+
+      // Redirect back — mentors go to mentor profile, others to general profile
+      const isMentor = user?.role === 'mentor' || userProfile?.role === 'mentor';
+      setTimeout(() => navigate(isMentor ? "/mentor-profile-view" : "/profile/view"), 500);
     } catch (error) {
-      showError("Failed to update profile. Please try again.");
+      console.error("Profile update error:", error);
+      showError(error?.message || "Failed to update profile. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -142,6 +181,22 @@ export default function EditProfile() {
                 rows={4}
                 placeholder="Tell us about yourself..."
               />
+
+              <FormField
+                label="Campus"
+                name="campusId"
+                type="select"
+                value={form.campusId}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select your campus</option>
+                {campuses.map((campus) => (
+                  <option key={campus._id} value={campus._id}>
+                    {campus.name}
+                  </option>
+                ))}
+              </FormField>
             </div>
           </Card>
 

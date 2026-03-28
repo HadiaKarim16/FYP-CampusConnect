@@ -2,32 +2,43 @@ import api from './axios';
 
 /**
  * Chat API functions
+ * Backend mounts at: /api/v1/chats
  */
 
-// Get user's conversations
-export const getUserConversations = async (userId) => {
+// Get all my chats (DMs + group chats)
+export const getMyChats = async () => {
   try {
-    const response = await api.get(`/users/${userId}/conversations`);
+    const response = await api.get('/chats');
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get conversation by ID
-export const getConversationById = async (conversationId) => {
+// Create or get a DM conversation with another user
+export const createOrGetDM = async (targetUserId) => {
   try {
-    const response = await api.get(`/conversations/${conversationId}`);
+    const response = await api.post('/chats/dm', { targetUserId });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get conversation messages
-export const getConversationMessages = async (conversationId, page = 1, limit = 50) => {
+// Get a specific chat by ID
+export const getChatById = async (chatId) => {
   try {
-    const response = await api.get(`/conversations/${conversationId}/messages`, {
+    const response = await api.get(`/chats/${chatId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Get messages for a chat (paginated)
+export const getChatMessages = async (chatId, page = 1, limit = 50) => {
+  try {
+    const response = await api.get(`/chats/${chatId}/messages`, {
       params: { page, limit },
     });
     return response.data;
@@ -36,94 +47,80 @@ export const getConversationMessages = async (conversationId, page = 1, limit = 
   }
 };
 
-// Send message
-export const sendMessage = async (conversationId, messageData) => {
+// Send a message in a chat
+export const sendMessage = async (chatId, content) => {
   try {
-    const response = await api.post(`/conversations/${conversationId}/messages`, messageData);
+    const response = await api.post(`/chats/${chatId}/messages`, { content });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Create new conversation
-export const createConversation = async (participantIds) => {
+// Mark a chat as read
+export const markChatAsRead = async (chatId) => {
   try {
-    const response = await api.post('/conversations', { participants: participantIds });
+    const response = await api.patch(`/chats/${chatId}/read`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Delete conversation
-export const deleteConversation = async (conversationId) => {
+// Edit a message
+export const editMessage = async (chatId, msgId, content) => {
   try {
-    const response = await api.delete(`/conversations/${conversationId}`);
+    const response = await api.patch(`/chats/${chatId}/messages/${msgId}`, { content });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Mark conversation as read
-export const markConversationAsRead = async (conversationId) => {
+// Delete a message
+export const deleteMessage = async (chatId, msgId) => {
   try {
-    const response = await api.patch(`/conversations/${conversationId}/read`);
+    const response = await api.delete(`/chats/${chatId}/messages/${msgId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get group chats
-export const getGroupChats = async (userId) => {
+// Toggle reaction on a message
+export const toggleReaction = async (chatId, msgId, emoji) => {
   try {
-    const response = await api.get(`/users/${userId}/group-chats`);
+    const response = await api.post(`/chats/${chatId}/messages/${msgId}/react`, { emoji });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Create group chat
-export const createGroupChat = async (groupData) => {
+// Update group chat (name, etc.)
+export const updateGroupChat = async (chatId, data) => {
   try {
-    const response = await api.post('/group-chats', groupData);
+    const response = await api.patch(`/chats/${chatId}`, data);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Add member to group chat
-export const addGroupMember = async (groupId, userId) => {
+// Add member to a group chat
+export const addMemberToChat = async (chatId, userId) => {
   try {
-    const response = await api.post(`/group-chats/${groupId}/members`, { userId });
+    const response = await api.post(`/chats/${chatId}/members`, { userId });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Remove member from group chat
-export const removeGroupMember = async (groupId, userId) => {
+// Remove member from a group chat
+export const removeMemberFromChat = async (chatId, userId) => {
   try {
-    const response = await api.delete(`/group-chats/${groupId}/members/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Upload file to conversation
-export const uploadChatFile = async (conversationId, formData) => {
-  try {
-    const response = await api.post(`/conversations/${conversationId}/files`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await api.delete(`/chats/${chatId}/members/${userId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

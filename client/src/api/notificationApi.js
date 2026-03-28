@@ -2,12 +2,13 @@ import api from './axios';
 
 /**
  * Notification API functions
+ * Backend mounts at: /api/v1/notifications
  */
 
 // Get all notifications for user
-export const getUserNotifications = async (userId, filters = {}) => {
+export const getUserNotifications = async (filters = {}) => {
   try {
-    const response = await api.get(`/users/${userId}/notifications`, { params: filters });
+    const response = await api.get('/notifications', { params: filters });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -25,9 +26,9 @@ export const markNotificationAsRead = async (notificationId) => {
 };
 
 // Mark all notifications as read
-export const markAllNotificationsAsRead = async (userId) => {
+export const markAllNotificationsAsRead = async () => {
   try {
-    const response = await api.patch(`/users/${userId}/notifications/read-all`);
+    const response = await api.patch('/notifications/read-all');
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -44,30 +45,10 @@ export const deleteNotification = async (notificationId) => {
   }
 };
 
-// Delete all notifications
-export const deleteAllNotifications = async (userId) => {
-  try {
-    const response = await api.delete(`/users/${userId}/notifications`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
 // Get unread notification count
-export const getUnreadCount = async (userId) => {
+export const getUnreadCount = async () => {
   try {
-    const response = await api.get(`/users/${userId}/notifications/unread-count`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Send notification (admin or system)
-export const sendNotification = async (notificationData) => {
-  try {
-    const response = await api.post('/notifications', notificationData);
+    const response = await api.get('/notifications/unread-count');
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

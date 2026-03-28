@@ -1,111 +1,50 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { selectUserProfile } from "@/redux/slices/userSlice";
-import { selectUpcomingEvents, setUpcomingEvents } from "@/redux/slices/eventSlice";
-import { selectRegisteredSocieties, setRegisteredSocieties } from "@/redux/slices/societySlice";
-import { selectAllNotifications, setNotifications } from "@/redux/slices/notificationSlice";
+// FIX [C3/S2]: Use async thunks that read from mockStorage instead of hardcoded data
+import {
+  fetchEvents,
+  selectUpcomingEvents,
+  selectOngoingEvents,
+} from "@/redux/slices/eventsSlice";
+import {
+  fetchSocieties,
+  selectMySocieties,
+} from "@/redux/slices/societiesSlice";
+import {
+  fetchNotifications,
+  selectAllNotifications,
+} from "@/redux/slices/notificationsSlice";
+
 import Button from "@/components/common/Button";
 import EventCard from "@/components/dashboard/EventCard";
 import NotificationWidget from "@/components/dashboard/NotificationWidget";
 import SocietySummary from "@/components/dashboard/SocietySummary";
 import TaskWidget from "@/components/dashboard/TaskWidget";
+import StudentSidebar from "@/components/layout/StudentSidebar";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   
-  // Redux selectors
+  // Redux selectors — now from async slices (synced with mockStorage)
   const userProfile = useSelector(selectUserProfile);
-  const upcomingEvents = useSelector(selectUpcomingEvents);
-  const registeredSocieties = useSelector(selectRegisteredSocieties);
-  const notifications = useSelector(selectAllNotifications);
+  const upcomingEvents = useSelector(selectUpcomingEvents) || [];
+  const ongoingEvents = useSelector(selectOngoingEvents) || [];
+  const registeredSocieties = useSelector(selectMySocieties) || [];
+  const notifications = useSelector(selectAllNotifications) || [];
   
   // Local state for tasks
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
 
-  // Initialize mock data in Redux on component mount
+  // FIX [C3/S2]: Fetch data from mockStorage via async thunks
   useEffect(() => {
-    // Mock upcoming events
-    if (upcomingEvents.length === 0) {
-      dispatch(setUpcomingEvents([
-        {
-          id: 1,
-          society: "IEEE Student Chapter",
-          title: "Annual Tech Symposium",
-          date: "Wed, Oct 26, 10:00 AM",
-          image:
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuD9RA_fMuSaLKstjcMP5ozR-vSaxtqQ_kzINRu0QEbitLaiaOGSvhHQ0t3zi1Py769dste1tAWujcMGzeKsHP3LIDU8GpBrAtxlzAEKMTgoN2PCuAMYnxMVStac_6sgv9hNluDqsTZg4B7sFD-1sE6Uqn7KpdMC_eKzapyTUfan20XYGE2tBdjBB1D9B7MnCMh1-NNhn67QqbuDD5OKhys_-_9nTeollnRzd23QBgopcA4rmFIaSDdXU_42pp-765L5mTwpjWlySM8",
-        },
-        {
-          id: 2,
-          society: "Debating Society",
-          title: "Inter-University Debate Finals",
-          date: "Fri, Nov 4, 2:00 PM",
-          image:
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuD3-_oIn91suwJp2Y7wxBTs3ZPaq72Kd3QtdHOL6EAqtQ0n6pEncU7_La8js5jGDp5Kdnq6kTZFIlzvBwNVVXL5B8iD9ywnZP35iPGjqP-dyZRon4S-2U8RENBHlJUtbWJIHeZQJOH_qCScqBVJG5Ri7fhSA5tI5wwhJ4JT1kRXW3-4TlUwqiyRTBJIKwu8tDxKOBltGDVxpO6MiMUlxREPa1y6MTdQbrVx5MJtWEMJiNqfhjjzGPSRGTe4ThsX54Y986W9h7baUy0",
-        },
-      ]));
-    }
-
-    // Mock registered societies
-    if (registeredSocieties.length === 0) {
-      dispatch(setRegisteredSocieties([
-        {
-          id: 1,
-          name: "IEEE Chapter",
-          image:
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuA5tRFcE_pFi824MNGNisea0s5XZIR-b-IBAuIchECnJ8ET_u-MZqJKAyC1Cd23hxZ-D0-3ffLxaYR2zyFNLQmsHcU3Iruq3o4_vdBPWs1U7i8yk5F34fm_X6kO9H3r8GanzhHM0DrnO_jKDwK2Ab9Xg-H6Tn7lEQKQnLKqhIGiJK9_1BI7njNayzMDHBkmlbjVHXmYsdsbfWllwCUJLUJx0x3aCnvMx8K49KhPKH4lhFB9yeHgKSJb8pin4eAoUF2y0YxIY0qw4GI",
-        },
-        {
-          id: 2,
-          name: "Debating Society",
-          image:
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuDoQNTWTBvvjCWzGT4LSr1h0qdUOa09wVzKeBx1TX53dyRxgmKHYTDS1TN_XJ-VLe34SDS9ynUpvRNZSRm9Ye3nIOTGeARiF7VoBHRUOoJngE52BBV8TselfYt8GNnQI7A7KevlQzgglbGZlfLMMrKCIFTH_dcWm8clNTFCXKbZchH9FtsE5gMqjY5bl9q-XSz00KbL43PLMbTkQKskFEdjkkYVQLBXyt7kcQRB0O_KhbQDbbDkd0EZRslHm881dAppEobIhYUK95E",
-        },
-        {
-          id: 3,
-          name: "AI Club",
-          image:
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuDAw7PEHr5CfYENft29JzW_oh8UNy32igeFcIciwY4SLganFizb8gE_yaxTVMUXknXfbbs2veZ4hzrA5Bs6a1Amq2ATMtYS80ZqCfzGd9qYy9u34e2BhMiLfD5hiXIkVwi6DhktH82Ew4leVgs1NDu1MCD6_6Er0SpmlF-WFut93bD157Ns9za1uJCd0Q0dMJoYX8vfND6G0ekTtV3V1Ff_HoP50ErEPHX7P00DVl6K2njjP26CKL39vwnOHDDERwHbVFUbwVixkXY",
-        },
-        {
-          id: 4,
-          name: "Photography Club",
-          image:
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuBUb85ANOhOOBeBqSWd-wOjgFd2X0JCzolY-1hBJfJLPjgh0RfRot_aA7obi-3MbWJEWkp-4EOoKaQsxsXaQF0pQ9_q_NaYN4s8cQJ4w2_2cSVD2afeq_WLhwcjHdqA2L-hS7UiUQHqGRXQZ8e8Sm4KhRJ2_iwsPPiMvNwiHZ_JYeAdQdFb2EItrr5p2Qq1QGaRbiLF5b1_EN7VGa92MVgICDZ6Bl4CG_zB56DJg_8QU-44tuOXEc9QEJPAmSZPLZFMMJYsIDE-has",
-        },
-      ]));
-    }
-
-    // Mock notifications
-    if (notifications.length === 0) {
-      dispatch(setNotifications([
-        {
-          id: 1,
-          icon: "campaign",
-          title: "New announcement in AI Club.",
-          time: "5 minutes ago",
-          read: false,
-        },
-        {
-          id: 2,
-          icon: "event_available",
-          title: "Annual Tech Symposium starts in 1 hour.",
-          time: "2 hours ago",
-          read: false,
-        },
-        {
-          id: 3,
-          icon: "chat",
-          title: "Dr. Evans sent you a message.",
-          time: "1 day ago",
-          read: true,
-        },
-      ]));
-    }
-  }, [dispatch, upcomingEvents.length, registeredSocieties.length, notifications.length]);
+    dispatch(fetchEvents());
+    dispatch(fetchSocieties());
+    dispatch(fetchNotifications());
+  }, [dispatch]);
 
   const handleAddTask = () => {
     if (newTask.trim()) {
@@ -115,119 +54,13 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="w-full bg-[#0d1117] text-[#c9d1d9] min-h-screen">
-      <div className="flex h-full">
-        {/* Sidebar - Hidden on mobile, visible on lg */}
-        <aside className="hidden lg:flex w-64 bg-[#0d1117] border-r border-[#30363d] flex-col justify-between p-4 fixed h-screen overflow-y-auto">
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={() => navigate("/student/profile")}
-              className="flex gap-3 items-center hover:opacity-80 transition-opacity"
-            >
-              <div
-                className="w-10 h-10 rounded-full bg-cover bg-center"
-                style={{
-                  backgroundImage: userProfile.avatar
-                    ? `url("${userProfile.avatar}")`
-                    : 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuArj_dwVEXu6vzmlT6afGmhH-P_vfNeMG0QArGPe7pCuhjPDjoqtXQWJ-6iHMe84K0ML3iDOk8vH8EEWMQSw1f-Gf0vMJ2yPXE8AQIoO29dA_ixx6rBuKafMgf7gnj2yYJgMhcG1XLWX-7NWRMmhz87akFE_mQreb0Td1-xI25paXpdQS9LWhUAqaxNzU_M6plyRH_sCbSsKApcdFa1_VeSSglcaAs_t7DDGJN3ryveQN_LqpmzIDRJ0S6HDo6kNwysBVwRtLqlQrw")',
-                }}
-              />
-              <div className="flex flex-col">
-                <h1 className="text-[#c9d1d9] text-base font-medium leading-normal">
-                  {userProfile.name || "Alex Johnson"}
-                </h1>
-                <p className="text-[#8b949e] text-sm font-normal leading-normal">
-                  {userProfile.department || "Computer Science"}
-                </p>
-              </div>
-            </button>
-            <nav className="flex flex-col gap-2 mt-4">
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#238636]/20 text-[#238636]"
-                href="/student/dashboard"
-              >
-                <span className="text-[#238636] text-lg">📊</span>
-                <p className="text-[#238636] text-sm font-medium leading-normal">
-                  Dashboard
-                </p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/student/tasks"
-              >
-                <span className="text-lg">✅</span>
-                <p className="text-sm font-medium leading-normal">Tasks</p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/student/events"
-              >
-                <span className="text-lg">📅</span>
-                <p className="text-sm font-medium leading-normal">Events</p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/student/societies"
-              >
-                <span className="text-lg">👥</span>
-                <p className="text-sm font-medium leading-normal">Societies</p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/student/academic-network"
-              >
-                <span className="text-lg">🔗</span>
-                <p className="text-sm font-medium leading-normal">Network</p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/student/messages"
-              >
-                <span className="text-lg">💬</span>
-                <p className="text-sm font-medium leading-normal">Messages</p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/mentors"
-              >
-                <span className="text-lg">🎓</span>
-                <p className="text-sm font-medium leading-normal">Mentoring</p>
-              </a>
-              <a
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-                href="/academics/notes"
-              >
-                <span className="text-lg">📝</span>
-                <p className="text-sm font-medium leading-normal">Notes</p>
-              </a>
-            </nav>
-          </div>
-          <div className="flex flex-col gap-1">
-            <a
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-              href="#"
-            >
-              <span className="text-lg">⚙️</span>
-              <p className="text-sm font-medium leading-normal">Settings</p>
-            </a>
-            <a
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#161b22] text-[#c9d1d9]"
-              href="#"
-            >
-              <span className="text-lg">🚪</span>
-              <p className="text-sm font-medium leading-normal">Log out</p>
-            </a>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 lg:ml-64 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+      <div className="max-w-7xl mx-auto">
             {/* Page Header */}
             <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
               <div className="flex flex-col gap-1">
                 <h1 className="text-[#c9d1d9] text-4xl font-bold leading-tight tracking-tight">
-                  Welcome, Alex!
+                  Welcome, {userProfile.name || "Student"}!
                 </h1>
                 <p className="text-[#8b949e] text-base font-normal leading-normal">
                   Your campus at a glance.
@@ -260,10 +93,15 @@ export default function StudentDashboard() {
                     </a>
                   </div>
                   <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 flex flex-col gap-4">
-                    {upcomingEvents.map((event) => (
+                    {upcomingEvents.slice(0, 3).map((event) => (
                       <EventCard
-                        key={event.id}
-                        event={event}
+                        key={event.id || event._id}
+                        event={{
+                          ...event,
+                          society: event.organizer || event.society,
+                          date: event.startTime ? new Date(event.startTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : event.date || "TBD",
+                          image: event.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuD9RA_fMuSaLKstjcMP5ozR-vSaxtqQ_kzINRu0QEbitLaiaOGSvhHQ0t3zi1Py769dste1tAWujcMGzeKsHP3LIDU8GpBrAtxlzAEKMTgoN2PCuAMYnxMVStac_6sgv9hNluDqsTZg4B7sFD-1sE6Uqn7KpdMC_eKzapyTUfan20XYGE2tBdjBB1D9B7MnCMh1-NNhn67QqbuDD5OKhys_-_9nTeollnRzd23QBgopcA4rmFIaSDdXU_42pp-765L5mTwpjWlySM8"
+                        }}
                         variant="compact"
                         onPrimaryAction={() => navigate("/student/events")}
                       />
@@ -366,8 +204,6 @@ export default function StudentDashboard() {
                 />
               </div>
             </div>
-          </div>
-        </main>
       </div>
     </div>
   );

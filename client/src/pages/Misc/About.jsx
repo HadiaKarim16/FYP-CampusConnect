@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import SectionHeader from "../../components/common/SectionHeader";
 import Card from "../../components/common/Card";
 import ValueCard from "../../components/common/ValueCard";
@@ -5,6 +6,8 @@ import StatDisplay from "../../components/common/StatDisplay";
 import Button from "../../components/common/Button";
 
 export default function AboutUs() {
+  const navigate = useNavigate();
+
   return (
     <div className="w-full bg-[#0d1117] text-[#e6edf3] min-h-screen py-10 px-4 sm:px-10 md:px-20 lg:px-40">
       <div className="max-w-[960px] mx-auto">
@@ -86,7 +89,7 @@ export default function AboutUs() {
             connectivity.
           </p>
           <div className="flex justify-center">
-            <Button variant="primary">See Open Positions</Button>
+            <Button variant="primary" onClick={() => navigate("/contact-us")}>See Open Positions</Button>
           </div>
         </Card>
       </div>

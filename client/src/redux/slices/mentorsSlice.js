@@ -1,0 +1,55 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getAllMentors, getMentorById } from '../../api/mentoringApi';
+
+export const fetchMentors = createAsyncThunk('mentors/fetchAll', async (filters = {}, { rejectWithValue }) => {
+  try {
+    const response = await getAllMentors(filters);
+    return Array.isArray(response.data) ? response.data : (response.data?.mentors || []);
+  } catch (error) {
+    return rejectWithValue(error?.message || 'Failed to fetch mentors');
+  }
+});
+
+export const fetchMentorById = createAsyncThunk('mentors/fetchById', async (mentorId, { rejectWithValue }) => {
+  try {
+    const response = await getMentorById(mentorId);
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error?.message || 'Failed to fetch mentor');
+  }
+});
+
+const mentorsSlice = createSlice({
+  name: 'mentors',
+  initialState: {
+    items: [],
+    currentMentor: null,
+    status: 'idle',
+    error: null,
+    actionLoading: {},
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    // fetchMentors
+    builder.addCase(fetchMentors.pending, (state) => { state.status = 'loading'; state.error = null; })
+      .addCase(fetchMentors.fulfilled, (state, action) => { state.status = 'succeeded'; state.items = action.payload; })
+      .addCase(fetchMentors.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload; });
+    
+    // fetchMentorById
+    builder.addCase(fetchMentorById.pending, (state) => { state.actionLoading.currentMentor = true; })
+      .addCase(fetchMentorById.fulfilled, (state, action) => { 
+        state.actionLoading.currentMentor = false; 
+        state.currentMentor = action.payload; 
+      })
+      .addCase(fetchMentorById.rejected, (state, action) => { 
+        state.actionLoading.currentMentor = false; 
+        state.error = action.payload; 
+      });
+  }
+});
+
+export default mentorsSlice.reducer;
+
+export const selectAllMentors = (state) => state.mentors?.items || [];
+export const selectCurrentMentor = (state) => state.mentors?.currentMentor || null;
+export const selectMentorsStatus = (state) => state.mentors?.status || 'idle';

@@ -3,10 +3,15 @@
 // Security: Handles sensitive auth state - ensure NO passwords or sensitive data is stored
 
 import React, { createContext, useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useNotification } from './NotificationContext';
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
+  const { addNotification } = useNotification();
+  
   const [auth, setAuth] = useState(() => {
     // Initialize from localStorage if available
     try {
@@ -39,12 +44,9 @@ export function AuthProvider({ children }) {
     }));
   }, []);
 
-  // Persist auth state to localStorage ONLY when auth status changes
-  // This prevents unnecessary I/O operations on every render
   useEffect(() => {
-    // Only persist when authentication state actually changes
-    // Don't persist on every state update
-    if (auth.isAuthenticated || auth.token) {
+    // Persist when auth state actually changes
+    if (auth.isAuthenticated && auth.token) {
       localStorage.setItem('authState', JSON.stringify(auth));
     }
   }, [auth.isAuthenticated, auth.token, auth.role, auth.onboardingCompleted]);
@@ -75,27 +77,32 @@ export function AuthProvider({ children }) {
       // Password MUST NOT be stored in frontend state
     };
 
-    setAuth({
+    // Always reset onboarding to false on a fresh explicit login
+    // This ensures the user is sent to the onboarding flow every time they log in.
+    const previousOnboardingCompleted = false;
+
+    const newState = {
       isAuthenticated: true,
       user: sanitizedUser,
       token,
       role,
-      onboardingCompleted: false, // Reset on login
+      onboardingCompleted: previousOnboardingCompleted,
       loading: false,
-    });
-  }, []);
+    };
 
-  const logout = useCallback(() => {
-    setAuth({
-      isAuthenticated: false,
-      user: null,
-      token: null,
-      role: null,
-      onboardingCompleted: false,
-      loading: false,
-    });
-    localStorage.removeItem('authState');
-  }, []);
+    // Persist and set state
+    localStorage.setItem('authState', JSON.stringify(newState));
+    setAuth(newState);
+
+    // FIX: Post-login redirect handling — honor saved redirect for ALL roles
+    const redirect = sessionStorage.getItem('postLoginRedirect');
+    if (redirect) {
+      sessionStorage.removeItem('postLoginRedirect');
+      navigate(redirect);
+    }
+  }, [navigate]);
+
+
 
   const updateUser = useCallback((updates) => {
     setAuth((prev) => ({

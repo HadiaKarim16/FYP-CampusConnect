@@ -1,451 +1,243 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import {
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification,
+  selectNotificationsByType,
   selectAllNotifications,
-  selectUnreadCount,
-  setNotifications,
-  markAsRead,
-  markAllAsRead,
-  removeNotification,
-} from "../../redux/slices/notificationSlice";
-import EmptyState from "../../components/common/EmptyState";
+  selectUnreadCount
+} from '../../redux/slices/notificationsSlice';
+import { timeAgo } from '../../utils/helpers';
+
 
 export default function StudentNotifications() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [filter, setFilter] = useState("all"); // all, unread, announcements, events, messages
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('All');
 
-  const notificationsList = useSelector(selectAllNotifications);
+  const status = useSelector((state) => state.notifications.status);
+  const allNotifs = useSelector(selectAllNotifications);
   const unreadCount = useSelector(selectUnreadCount);
 
+  // FIX [Bug 3]: Fixed filtering to match corrected singular tab internal types
+  const displayedNotifs = activeTab === 'All' 
+    ? allNotifs 
+    : allNotifs.filter(n => {
+        if (activeTab === 'Events') return n.type === 'event';
+        if (activeTab === 'Societies') return n.type === 'society';
+        if (activeTab === 'Sessions') return n.type === 'session';
+        if (activeTab === 'Tasks') return n.type === 'task';
+        if (activeTab === 'System') return n.type === 'system';
+        return false;
+      });
+
   useEffect(() => {
-    if (notificationsList.length === 0) {
-      const mockNotifications = [
-    {
-      id: 1,
-      type: "announcement",
-      icon: "campaign",
-      emoji: "📢",
-      title: "New announcement in AI Club",
-      description:
-        "Weekly meeting scheduled for Friday at 4 PM in Room 301. Topics include neural networks and project updates.",
-      time: "5 minutes ago",
-      timestamp: new Date(Date.now() - 5 * 60 * 1000),
-      read: false,
-      source: "AI Club",
-      action: "View Announcement",
-    },
-    {
-      id: 2,
-      type: "event",
-      icon: "event_available",
-      emoji: "📅",
-      title: "Annual Tech Symposium starts in 1 hour",
-      description:
-        "Don't forget to attend the Annual Tech Symposium. Registration desk opens at 9:30 AM.",
-      time: "2 hours ago",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      read: false,
-      source: "IEEE Student Chapter",
-      action: "View Event",
-    },
-    {
-      id: 3,
-      type: "message",
-      icon: "chat",
-      emoji: "💬",
-      title: "Dr. Evans sent you a message",
-      description:
-        "Regarding your project submission deadline and feedback on the initial draft.",
-      time: "1 day ago",
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      read: true,
-      source: "Dr. Sarah Evans",
-      action: "View Message",
-    },
-    {
-      id: 4,
-      type: "event",
-      icon: "event_available",
-      emoji: "📅",
-      title: "Inter-University Debate Finals tomorrow",
-      description:
-        "Final preparation meeting at 3 PM today. Location: Auditorium B.",
-      time: "1 day ago",
-      timestamp: new Date(Date.now() - 26 * 60 * 60 * 1000),
-      read: true,
-      source: "Debating Society",
-      action: "View Event",
-    },
-    {
-      id: 5,
-      type: "announcement",
-      icon: "campaign",
-      emoji: "📢",
-      title: "Photography Club photo contest winners announced",
-      description:
-        "Congratulations to all participants! Winners will be announced at the exhibition opening.",
-      time: "2 days ago",
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      read: true,
-      source: "Photography Club",
-      action: "View Results",
-    },
-    {
-      id: 6,
-      type: "message",
-      icon: "chat",
-      emoji: "💬",
-      title: "Alex Kim mentioned you in a comment",
-      description:
-        "In the discussion about Machine Learning project ideas for next semester.",
-      time: "2 days ago",
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      read: true,
-      source: "Network Discussion",
-      action: "View Comment",
-    },
-    {
-      id: 7,
-      type: "event",
-      icon: "event_available",
-      emoji: "📅",
-      title: "New society event: Workshop on Web Development",
-      description:
-        "Learn React, Node.js, and deployment strategies. Limited seats available.",
-      time: "3 days ago",
-      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      read: true,
-      source: "IEEE Student Chapter",
-      action: "Register Now",
-    },
-    {
-      id: 8,
-      type: "announcement",
-      icon: "campaign",
-      emoji: "📢",
-      title: "Campus library hours extended during finals",
-      description:
-        "The library will be open 24/7 starting next week until the end of finals period.",
-      time: "4 days ago",
-      timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-      read: true,
-      source: "Campus Administration",
-      action: "View Details",
-    },
-    {
-      id: 9,
-      type: "message",
-      icon: "chat",
-      emoji: "💬",
-      title: "Dr. Martinez replied to your question",
-      description: "Answer to your question about assignment 3, part 2.",
-      time: "5 days ago",
-      timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      read: true,
-      source: "Dr. Carlos Martinez",
-      action: "View Reply",
-    },
-    {
-      id: 10,
-      type: "event",
-      icon: "event_available",
-      emoji: "📅",
-      title: "Reminder: Study group session tonight",
-      description:
-        "Data Structures study group meets at 7 PM in the library study room 3.",
-      time: "5 days ago",
-      timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      read: true,
-      source: "Study Group",
-      action: "View Details",
-    },
-      ];
-      dispatch(setNotifications(mockNotifications));
+    dispatch(fetchNotifications());
+  }, [dispatch]);
+
+  // Handle auto-mark as read from URL query param (e.g., ?notifId=123)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const notifId = searchParams.get('notifId');
+    if (notifId) {
+      dispatch(markNotificationRead(notifId));
     }
-  }, [dispatch, notificationsList.length]);
+  }, [dispatch, location.search]);
 
-  const filteredNotifications = useMemo(
-    () =>
-      notificationsList.filter((notif) => {
-        if (filter === "all") return true;
-        if (filter === "unread") return !notif.read;
-        if (filter === "announcements") return notif.type === "announcement";
-        if (filter === "events") return notif.type === "event";
-        if (filter === "messages") return notif.type === "message";
-        return true;
-      }),
-    [notificationsList, filter]
-  );
-
-  const handleMarkAsRead = (id) => {
-    dispatch(markAsRead(id));
-  };
-
-  const handleMarkAllAsRead = () => {
-    dispatch(markAllAsRead());
-  };
-
-  const handleDeleteNotification = (id) => {
-    dispatch(removeNotification(id));
-  };
-
-  const handleNotificationClick = (notif) => {
-    // Mark as read
-    handleMarkAsRead(notif.id);
-
-    // Navigate based on type
-    if (notif.type === "event") {
-      navigate("/student/events");
-    } else if (notif.type === "message") {
-      navigate("/student/messages");
-    } else if (notif.type === "announcement") {
-      navigate("/student/societies");
+  const handleMarkAllRead = () => {
+    if (unreadCount > 0) {
+      dispatch(markAllNotificationsRead());
     }
   };
+
+  const handleNotifClick = (notif) => {
+    // FIX BUG 5: isRead becomes true when user clicks anywhere on the row
+    if (!notif.isRead) {
+      dispatch(markNotificationRead(notif.id));
+    }
+    // PRESERVED: Navigate to related path feature works perfectly
+    if (notif.relatedPath) {
+      navigate(notif.relatedPath);
+    }
+  };
+
+  const handleDelete = (e, notifId) => {
+    e.stopPropagation(); // prevent route navigation
+    dispatch(deleteNotification(notifId));
+  };
+
+  const getIconData = (type) => {
+    switch (type) {
+      case 'event': return { icon: 'calendar_month', bg: 'bg-blue-500/20', text: 'text-blue-500' };
+      case 'society': return { icon: 'groups', bg: 'bg-purple-500/20', text: 'text-purple-500' };
+      case 'session': return { icon: 'videocam', bg: 'bg-green-500/20', text: 'text-green-500' };
+      case 'task': return { icon: 'task_alt', bg: 'bg-orange-500/20', text: 'text-orange-500' };
+      case 'system': return { icon: 'notifications', bg: 'bg-gray-500/20', text: 'text-gray-400' };
+      default: return { icon: 'info', bg: 'bg-gray-500/20', text: 'text-gray-400' };
+    }
+  };
+
+  // FIX [Bug 3]: Spellchecked tab labels: 'Societys' -> 'Societies', 'Systems' -> 'System'
+  const tabs = ['All', 'Events', 'Societies', 'Sessions', 'Tasks', 'System'];
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
-      {/* Header */}
-      <header className="bg-[#161b22] border-b border-[#30363d] sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate("/student/dashboard")}
-                className="flex items-center gap-2 text-[#8b949e] hover:text-[#c9d1d9] transition-colors"
-              >
-                <span className="material-symbols-outlined text-xl">
-                  arrow_back
-                </span>
-                <span className="text-sm font-medium">Back</span>
-              </button>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">🔔</span>
-                <div>
-                  <h1 className="text-2xl font-bold text-[#c9d1d9]">
-                    Notifications
-                  </h1>
-                  <p className="text-sm text-[#8b949e]">
-                    Stay updated with your campus activities
-                  </p>
-                </div>
+    // FIX [Bug 2]: Outer page wrapper constrained to min-h-screen
+    <div className="flex min-h-screen bg-[#0d1117]">
+
+
+      {/* FIX [Bug 2]: Main content column inside flex flex-col to keep footer at bottom */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        <main className="flex-1 py-8 lg:py-12 px-4 sm:px-10 lg:px-20 text-[#c9d1d9] max-w-5xl mx-auto w-full">
+          <div className="flex flex-col gap-6">
+            
+            {/* HEADER ROW */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-extrabold text-white">Notifications</h1>
+                {unreadCount > 0 && (
+                  <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    {unreadCount} unread
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="px-4 py-2 rounded-lg bg-[#238636] text-white text-sm font-medium hover:bg-[#2ea043] transition-colors"
-                >
-                  Mark All Read ({unreadCount})
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filter Tabs */}
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "all"
-                  ? "bg-[#238636] text-white"
-                  : "bg-[#161b22] text-[#8b949e] hover:bg-[#1c2128] hover:text-[#c9d1d9]"
-              }`}
-            >
-              All ({notificationsList.length})
-            </button>
-            <button
-              onClick={() => setFilter("unread")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "unread"
-                  ? "bg-[#238636] text-white"
-                  : "bg-[#161b22] text-[#8b949e] hover:bg-[#1c2128] hover:text-[#c9d1d9]"
-              }`}
-            >
-              Unread ({unreadCount})
-            </button>
-            <button
-              onClick={() => setFilter("announcements")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "announcements"
-                  ? "bg-[#238636] text-white"
-                  : "bg-[#161b22] text-[#8b949e] hover:bg-[#1c2128] hover:text-[#c9d1d9]"
-              }`}
-            >
-              📢 Announcements
-            </button>
-            <button
-              onClick={() => setFilter("events")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "events"
-                  ? "bg-[#238636] text-white"
-                  : "bg-[#161b22] text-[#8b949e] hover:bg-[#1c2128] hover:text-[#c9d1d9]"
-              }`}
-            >
-              📅 Events
-            </button>
-            <button
-              onClick={() => setFilter("messages")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "messages"
-                  ? "bg-[#238636] text-white"
-                  : "bg-[#161b22] text-[#8b949e] hover:bg-[#1c2128] hover:text-[#c9d1d9]"
-              }`}
-            >
-              💬 Messages
-            </button>
-          </div>
-        </div>
-
-        {/* Notifications List */}
-        {filteredNotifications.length === 0 ? (
-          <EmptyState
-            icon="notifications"
-            title="No notifications"
-            description={
-              filter === "unread"
-                ? "You're all caught up! No unread notifications."
-                : filter === "all"
-                  ? "You don't have any notifications yet."
-                  : `No ${filter} notifications at the moment.`
-            }
-            iconSize="6xl"
-          />
-        ) : (
-          <div className="space-y-3">
-            {filteredNotifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={`bg-[#161b22] border rounded-lg p-5 transition-all hover:border-[#238636]/50 ${
-                  notif.read
-                    ? "border-[#30363d] opacity-80"
-                    : "border-[#238636]/30 bg-[#238636]/5"
-                }`}
+              <button
+                onClick={handleMarkAllRead}
+                disabled={unreadCount === 0 || status === 'loading'}
+                className="flex items-center gap-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                           bg-[#21262d] border border-[#30363d] px-4 py-2 rounded-lg text-white hover:bg-[#30363d]"
               >
-                <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <div
-                    className={`flex-shrink-0 rounded-full p-3 ${
-                      notif.read
-                        ? "bg-[#30363d]/50 text-[#8b949e]"
-                        : "bg-[#238636]/20 text-[#238636]"
-                    }`}
-                  >
-                    <span className="text-2xl">{notif.emoji}</span>
-                  </div>
+                <span className="material-symbols-outlined text-[18px]">done_all</span>
+                Mark all as read
+              </button>
+            </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="flex-1">
-                        <h3
-                          className={`text-base font-semibold mb-1 ${
-                            notif.read ? "text-[#8b949e]" : "text-[#c9d1d9]"
-                          }`}
-                        >
-                          {notif.title}
-                          {!notif.read && (
-                            <span className="ml-2 inline-block w-2 h-2 bg-[#238636] rounded-full"></span>
-                          )}
-                        </h3>
-                        <p className="text-sm text-[#8b949e] mb-2">
-                          {notif.description}
-                        </p>
-                        <div className="flex items-center gap-3 text-xs text-[#8b949e]">
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">
-                              schedule
+            {/* FILTER TABS */}
+            <div className="flex overflow-x-auto gap-2 bg-[#161b22]/40 glass border border-[#30363d] p-1.5 rounded-2xl hide-scrollbar backdrop-blur-xl">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-shrink-0 px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${
+                    activeTab === tab
+                      ? 'bg-[#238636] text-white shadow-lg shadow-[#238636]/20 scale-105'
+                      : 'text-[#8b949e] hover:bg-[#30363d]/50 hover:text-[#c9d1d9] hover:translate-y-[-1px]'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* NOTIFICATION LIST */}
+            <div className="glass border border-[#30363d] rounded-2xl overflow-hidden min-h-[500px] backdrop-blur-xl shadow-2xl">
+              {status === 'failed' ? (
+                <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                  <div className="w-20 h-20 bg-[#f85149]/10 rounded-full flex items-center justify-center border border-[#f85149]/30 mb-4">
+                    <span className="material-symbols-outlined text-4xl text-[#f85149]">error</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Failed to load notifications</h3>
+                  <p className="text-[#8b949e] mb-6">Something went wrong. Please try again.</p>
+                  <button
+                    onClick={() => dispatch(fetchNotifications())}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded-lg font-medium text-sm transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">refresh</span>
+                    Retry
+                  </button>
+                </div>
+              ) : status === 'loading' ? (
+                <div className="flex justify-center items-center py-20">
+                  <span className="material-symbols-outlined text-4xl text-[#8b949e] animate-spin">refresh</span>
+                </div>
+              ) : displayedNotifs.length > 0 ? (
+                <div className="flex flex-col">
+                  {displayedNotifs.map((notif) => {
+                    const { icon, bg, text } = getIconData(notif.type);
+                    return (
+                      // FIX [Bug 5]: Unread background highlighting vs default read bg
+                      <div
+                        key={notif.id}
+                        onClick={() => handleNotifClick(notif)}
+                        className={`
+                          group relative flex items-start gap-5 p-6 cursor-pointer
+                          border-b border-[#30363d]/30 last:border-0 transition-all duration-300
+                          ${notif.isRead 
+                            ? 'hover:bg-white/5 bg-transparent' 
+                            : 'bg-blue-600/5 hover:bg-blue-600/10 border-l-4 border-l-blue-500 shadow-[inset_0_0_30px_rgba(59,130,246,0.03)]'}
+                        `}
+                      >
+                        {/* Left: Type Icon */}
+                        <div className={`w-14 h-14 rounded-2xl flex flex-shrink-0 items-center justify-center shadow-lg transition-transform group-hover:scale-110 duration-300 ${bg} ${text}`}>
+                          <span className="material-symbols-outlined text-[28px]">{icon}</span>
+                        </div>
+
+                        {/* Center: Content */}
+                        <div className="flex-1 min-w-0 pr-16">
+                          <div className="flex justify-between items-start gap-2 mb-1">
+                            {/* FIX [Bug 5]: Unread title text is bold white, read is lighter gray text */}
+                            <h3 className={`text-base truncate ${notif.isRead ? 'text-gray-300 font-normal' : 'text-white font-semibold'}`}>
+                              {notif.title}
+                            </h3>
+                            <span className="text-xs text-[#8b949e] whitespace-nowrap mt-1 flex-none hidden sm:block">
+                              {timeAgo(notif.createdAt)}
                             </span>
-                            {notif.time}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">
-                              source
-                            </span>
-                            {notif.source}
+                          </div>
+                          <p className="text-sm text-[#8b949e] line-clamp-2">
+                            {notif.body}
+                          </p>
+                          <span className="text-xs text-[#8b949e] block mt-2 sm:hidden">
+                            {timeAgo(notif.createdAt)}
                           </span>
                         </div>
-                      </div>
 
-                      {/* Actions */}
-                      <div className="flex items-start gap-2">
-                        {!notif.read && (
+                        {/* Right: Unread Dot & Delete Hover Actions */}
+                        {/* FIX [Bug 6]: Positioned far right, hidden by default, visible on group-hover */}
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-3">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMarkAsRead(notif.id);
-                            }}
-                            className="text-[#8b949e] hover:text-[#238636] transition-colors"
-                            title="Mark as read"
+                            onClick={(e) => handleDelete(e, notif.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-300 p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex-none"
+                            title="Delete notification"
                           >
-                            <span className="material-symbols-outlined text-xl">
-                              done
-                            </span>
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
                           </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteNotification(notif.id);
-                          }}
-                          className="text-[#8b949e] hover:text-[#da3633] transition-colors"
-                          title="Delete notification"
-                        >
-                          <span className="material-symbols-outlined text-xl">
-                            delete
-                          </span>
-                        </button>
+
+                          {/* FIX [Bug 5]: Unread dot, right side of row, blue flex-none */}
+                          {!notif.isRead && (
+                            <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] flex-none group-hover:opacity-0 transition-opacity"></div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button
-                      onClick={() => handleNotificationClick(notif)}
-                      className="mt-3 px-4 py-2 rounded-lg bg-[#238636] text-white text-sm font-medium hover:bg-[#2ea043] transition-colors"
-                    >
-                      {notif.action}
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ) : (
+                /* EMPTY STATE */
+                <div className="flex flex-col items-center justify-center py-32 px-6 text-center bg-[#161b22]/10">
+                  <div className="w-24 h-24 bg-[#238636]/10 rounded-3xl flex items-center justify-center border border-[#238636]/20 mb-6 shadow-2xl shadow-[#238636]/5 animate-pulse">
+                    <span className="material-symbols-outlined text-5xl text-[#238636]">
+                      {activeTab === 'All' ? 'notifications_off' : getIconData(activeTab.toLowerCase()).icon}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">You're All Caught Up</h3>
+                  <p className="text-[#8b949e] max-w-xs mx-auto leading-relaxed">
+                    {activeTab === 'All' 
+                      ? "Awesome! You've cleared all your notifications. Enjoy the peace and quiet." 
+                      : `No new ${activeTab.toLowerCase()} notifications to show right now.`}
+                  </p>
+                </div>
+              )}
+            </div>
 
-        {/* Stats Summary */}
-        {filteredNotifications.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-[#238636]">
-                {notificationsList.length}
-              </div>
-              <div className="text-sm text-[#8b949e] mt-1">
-                Total Notifications
-              </div>
-            </div>
-            <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-[#238636]">
-                {unreadCount}
-              </div>
-              <div className="text-sm text-[#8b949e] mt-1">Unread</div>
-            </div>
-            <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-[#238636]">
-                {notificationsList.length - unreadCount}
-              </div>
-              <div className="text-sm text-[#8b949e] mt-1">Read</div>
-            </div>
+            {/* FIX [Bug 7]: Deleted stray space at the bottom to ensure no floating dots! */}
+
           </div>
-        )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

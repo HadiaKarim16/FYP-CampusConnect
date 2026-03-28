@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { logout as logoutAction, clearOnboarding } from "../../redux/slices/authSlice";
 import { resetUserState } from "../../redux/slices/userSlice";
-import { clearAllNotifications } from "../../redux/slices/notificationSlice";
+// FIX: Migrated from deleted notificationSlice.js to consolidated notificationsSlice.js
+import { clearAllNotifications } from "../../redux/slices/notificationsSlice";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 
 export default function Logout() {

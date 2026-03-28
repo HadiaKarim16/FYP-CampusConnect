@@ -5,18 +5,26 @@ import { NotificationProvider } from "@/contexts/NotificationContext.jsx";
 import { AgentProvider } from "@/contexts/AgentContext.jsx";
 import { SocketProvider } from "@/contexts/SocketContext.jsx";
 
+import { ModalProvider } from "@/contexts/ModalContext.jsx";
+import GlobalModalsRender from "@/components/modals/GlobalModalsRender.jsx";
+import NotificationDisplay from "@/components/common/NotificationDisplay.jsx";
+
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
+      <ModalProvider>
         <NotificationProvider>
-          <AgentProvider>
-            <SocketProvider socketUrl={import.meta.env.VITE_SOCKET_URL || "wss://api.example.com/socket"}>
-              <AppRoutes />
-            </SocketProvider>
-          </AgentProvider>
+          <NotificationDisplay />
+          <AuthProvider>
+            <GlobalModalsRender />
+            <AgentProvider>
+              <SocketProvider socketUrl={import.meta.env.VITE_SOCKET_URL || "http://localhost:8000"}>
+                <AppRoutes />
+              </SocketProvider>
+            </AgentProvider>
+          </AuthProvider>
         </NotificationProvider>
-      </AuthProvider>
+      </ModalProvider>
     </ErrorBoundary>
   );
 }

@@ -1,110 +1,111 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import {
-  selectAllMembers,
-  setMembers,
-} from "../../redux/slices/memberSlice";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserSocieties, getSocietyMembers } from "@/api/societyApi";
 import SocietyPageHeader from "../../components/societies/SocietyPageHeader";
 
 export default function SocietyNetworking() {
-  const dispatch = useDispatch();
+  const { user } = useAuth();
   const [filter, setFilter] = useState("all");
-  const connections = useSelector(selectAllMembers);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (connections.length === 0) {
-      dispatch(
-        setMembers([
-          {
-            id: 1,
-            name: "Emma Thompson",
-            role: "Software Engineer",
-            company: "Tech Corp",
-            society: "Tech Innovators Club",
-            connections: 450,
-            image:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuArj_dwVEXu6vzmlT6afGmhH-P_vfNeMG0QArGPe7pCuhjPDjoqtXQWJ-6iHMe84K0ML3iDOk8vH8EEWMQSw1f-Gf0vMJ2yPXE8AQIoO29dA_ixx6rBuKafMgf7gnj2yYJgMhcG1XLWX-7NWRMmhz87akFE_mQreb0Td1-xI25paXpdQS9LWhUAqaxNzU_M6plyRH_sCbSsKApcdFa1_VeSSglcaAs_t7DDGJN3ryveQN_LqpmzIDRJ0S6HDo6kNwysBVwRtLqlQrw",
-            status: "online",
-            interests: ["Technology", "Engineering"],
-          },
-          {
-            id: 2,
-            name: "David Kumar",
-            role: "Startup Founder",
-            company: "InnovateCo",
-            society: "Entrepreneurs of Tomorrow",
-            connections: 320,
-            image:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuA5tRFcE_pFi824MNGNisea0s5XZIR-b-IBAuIchECnJ8ET_u-MZqJKAyC1Cd23hxZ-D0-3ffLxaYR2zyFNLQmsHcU3Iruq3o4_vdBPWs1U7i8yk5F34fm_X6kO9H3r8GanzhHM0DrnO_jKDwK2Ab9Xg-H6Tn7lEQKQnLKqhIGiJK9_1BI7njNayzMDHBkmlbjVHXmYsdsbfWllwCUJLUJx0x3aCnvMx8K49KhPKH4lhFB9yeHgKSJb8pin4eAoUF2y0YxIY0qw4GI",
-            status: "offline",
-            interests: ["Entrepreneurship", "Innovation"],
-          },
-          {
-            id: 3,
-            name: "Sophia Martinez",
-            role: "Communications Director",
-            company: "MediaPlus",
-            society: "Debate Society",
-            connections: 280,
-            image:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuDoQNTWTBvvjCWzGT4LSr1h0qdUOa09wVzKeBx1TX53dyRxgmKHYTDS1TN_XJ-VLe34SDS9ynUpvRNZSRm9Ye3nIOTGeARiF7VoBHRUOoJngE52BBV8TselfYt8GNnQI7A7KevlQzgglbGZlfLMMrKCIFTH_dcWm8clNTFCXKbZchH9FtsE5gMqjY5bl9q-XSz00KbL43PLMbTkQKskFEdjkkYVQLBXyt7kcQRB0O_KhbQDbbDkd0EZRslHm881dAppEobIhYUK95E",
-            status: "online",
-            interests: ["Communication", "Media"],
-          },
-          {
-            id: 4,
-            name: "James Wilson",
-            role: "Data Scientist",
-            company: "Analytics Pro",
-            society: "Tech Innovators Club",
-            connections: 195,
-            image:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuDAw7PEHr5CfYENft29JzW_oh8UNy32igeFcIciwY4SLganFizb8gE_yaxTVMUXknXfbbs2veZ4hzrA5Bs6a1Amq2ATMtYS80ZqCfzGd9qYy9u34e2BhMiLfD5hiXIkVwi6DhktH82Ew4leVgs1NDu1MCD6_6Er0SpmlF-WFut93bD157Ns9za1uJCd0Q0dMJoYX8vfND6G0ekTtV3V1Ff_HoP50ErEPHX7P00DVl6K2njjP26CKL39vwnOHDDERwHbVFUbwVixkXY",
-            status: "offline",
-            interests: ["Data Science", "Analytics"],
-          },
-          {
-            id: 5,
-            name: "Olivia Chen",
-            role: "Product Manager",
-            company: "DesignHub",
-            society: "Tech Innovators Club",
-            connections: 510,
-            image:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuBUb85ANOhOOBeBqSWd-wOjgFd2X0JCzolY-1hBJfJLPjgh0RfRot_aA7obi-3MbWJEWkp-4EOoKaQsxsXaQF0pQ9_q_NaYN4s8cQJ4w2_2cSVD2afeq_WLhwcjHdqA2L-hS7UiUQHqGRXQZ8e8Sm4KhRJ2_iwsPPiMvNwiHZ_JYeAdQdFb2EItrr5p2Qq1QGaRbiLF5b1_EN7VGa92MVgICDZ6Bl4CG_zB56DJg_8QU-44tuOXEc9QEJPAmSZPLZFMMJYsIDE-has",
-            status: "online",
-            interests: ["Product Management", "Design"],
-          },
-          {
-            id: 6,
-            name: "Alex Johnson",
-            role: "Marketing Specialist",
-            company: "BrandCo",
-            society: "Entrepreneurs of Tomorrow",
-            connections: 340,
-            image:
-              "https://lh3.googleusercontent.com/aida-public/AB6AXuA5tRFcE_pFi824MNGNisea0s5XZIR-b-IBAuIchECnJ8ET_u-MZqJKAyC1Cd23hxZ-D0-3ffLxaYR2zyFNLQmsHcU3Iruq3o4_vdBPWs1U7i8yk5F34fm_X6kO9H3r8GanzhHM0DrnO_jKDwK2Ab9Xg-H6Tn7lEQKQnLKqhIGiJK9_1BI7njNayzMDHBkmlbjVHXmYsdsbfWllwCUJLUJx0x3aCnvMx8K49KhPKH4lhFB9yeHgKSJb8pin4eAoUF2y0YxIY0qw4GI",
-            status: "online",
-            interests: ["Marketing", "Branding"],
-          },
-        ])
+    const fetchMembers = async () => {
+      try {
+        setLoading(true);
+        const socRes = await getUserSocieties(user?._id);
+        const societies = socRes.data || socRes || [];
+
+        let allMembers = [];
+        const seenIds = new Set();
+
+        for (const society of societies) {
+          const sid = society._id || society.id;
+          try {
+            const membersRes = await getSocietyMembers(sid);
+            const membersList = membersRes.data || membersRes || [];
+            // Only include approved members, avoid duplicates
+            for (const m of membersList) {
+              const mid = m.memberId?._id || m.memberId || m._id;
+              if (m.status === "approved" && !seenIds.has(mid)) {
+                seenIds.add(mid);
+                allMembers.push({
+                  ...m,
+                  societyName: society.name,
+                });
+              }
+            }
+          } catch {
+            /* skip if can't fetch */
+          }
+        }
+        setMembers(allMembers);
+      } catch (err) {
+        console.error("Failed to fetch networking members:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?._id) fetchMembers();
+  }, [user]);
+
+  const getMemberName = (m) =>
+    m.memberId?.profile?.displayName ||
+    m.memberId?.profile?.firstName ||
+    m.name ||
+    "Unknown";
+
+  const getMemberEmail = (m) => m.memberId?.email || m.email || "";
+
+  const getMemberAvatar = (m) =>
+    m.memberId?.profile?.avatar || m.image || "";
+
+  const getMemberRole = (m) => m.role || "member";
+
+  const getMemberDate = (m) => {
+    const d = m.joinedAt || m.createdAt;
+    if (!d) return "";
+    return new Date(d).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getMemberId = (m) => m.memberId?._id || m.memberId || m._id;
+
+  const filteredMembers = useMemo(() => {
+    let list = members;
+
+    // Text search
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(
+        (m) =>
+          getMemberName(m).toLowerCase().includes(q) ||
+          getMemberEmail(m).toLowerCase().includes(q) ||
+          (m.societyName || "").toLowerCase().includes(q)
       );
     }
-  }, [dispatch, connections.length]);
 
-  const filteredConnections = useMemo(
-    () =>
-      connections.filter((conn) => {
-        if (filter === "all") return true;
-        if (filter === "online") return conn.status === "online";
-        return true;
-      }),
-    [connections, filter]
-  );
+    // Role filter
+    if (filter !== "all") {
+      list = list.filter((m) => getMemberRole(m) === filter);
+    }
+
+    return list;
+  }, [members, filter, searchTerm]);
+
+  // Get unique roles for filter tabs
+  const roles = useMemo(() => {
+    const roleSet = new Set(members.map((m) => getMemberRole(m)));
+    return Array.from(roleSet);
+  }, [members]);
 
   return (
     <div className="min-h-screen bg-[#111714] text-white">
-      {/* Header */}
       <SocietyPageHeader
         title="Networking Hub"
         subtitle="Connect with society members and alumni"
@@ -114,7 +115,9 @@ export default function SocietyNetworking() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search connections..."
+              placeholder="Search members..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="px-4 py-2 rounded-lg bg-[#111714] border border-[#29382f] text-white placeholder-[#9eb7a9] focus:outline-none focus:border-[#1dc964] w-64"
             />
             <span className="material-symbols-outlined absolute right-3 top-2.5 text-[#9eb7a9]">
@@ -124,7 +127,6 @@ export default function SocietyNetworking() {
         }
       />
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filter Tabs */}
         <div className="mb-6">
@@ -137,78 +139,132 @@ export default function SocietyNetworking() {
                   : "bg-[#1a241e] text-[#9eb7a9] hover:bg-[#1a241e]/80 hover:text-white"
               }`}
             >
-              All Members ({connections.length})
+              All Members ({members.length})
             </button>
-            <button
-              onClick={() => setFilter("online")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "online"
-                  ? "bg-[#1dc964] text-[#111714]"
-                  : "bg-[#1a241e] text-[#9eb7a9] hover:bg-[#1a241e]/80 hover:text-white"
-              }`}
-            >
-              Online Now (
-              {connections.filter((c) => c.status === "online").length})
-            </button>
+            {roles.map((role) => (
+              <button
+                key={role}
+                onClick={() => setFilter(role)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+                  filter === role
+                    ? "bg-[#1dc964] text-[#111714]"
+                    : "bg-[#1a241e] text-[#9eb7a9] hover:bg-[#1a241e]/80 hover:text-white"
+                }`}
+              >
+                {role} ({members.filter((m) => getMemberRole(m) === role).length}
+                )
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Connections Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {filteredConnections.map((connection) => (
-            <div
-              key={connection.id}
-              className="bg-[#1a241e] border border-[#29382f] rounded-lg p-6 hover:border-[#1dc964]/50 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="relative">
-                  <div
-                    className="w-16 h-16 rounded-full bg-cover bg-center"
-                    style={{ backgroundImage: `url("${connection.image}")` }}
-                  />
-                  {connection.status === "online" && (
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#1dc964] rounded-full border-2 border-[#1a241e]" />
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1dc964]"></div>
+          </div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="bg-[#1a241e] border border-[#29382f] rounded-lg p-12 text-center">
+            <span className="material-symbols-outlined text-6xl text-[#29382f] block mb-4">
+              group
+            </span>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No members found
+            </h3>
+            <p className="text-[#9eb7a9]">
+              {searchTerm
+                ? "Try a different search term."
+                : "Society members will appear here once they join."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {filteredMembers.map((member) => {
+              const mid = getMemberId(member);
+              const name = getMemberName(member);
+              const avatar = getMemberAvatar(member);
+              const initial = (name || "U")[0].toUpperCase();
+              const colors = [
+                "from-green-400 to-blue-500",
+                "from-purple-500 to-indigo-500",
+                "from-pink-500 to-orange-400",
+                "from-blue-400 to-emerald-400",
+                "from-yellow-400 to-orange-500",
+              ];
+              const colorClass =
+                colors[(name || "").length % colors.length];
+
+              return (
+                <div
+                  key={mid}
+                  className="bg-[#1a241e] border border-[#29382f] rounded-lg p-6 hover:border-[#1dc964]/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="relative">
+                      {avatar ? (
+                        <div
+                          className="w-16 h-16 rounded-full bg-cover bg-center ring-2 ring-[#29382f]"
+                          style={{
+                            backgroundImage: `url("${avatar}")`,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className={`w-16 h-16 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-white text-2xl font-bold`}
+                        >
+                          {initial}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${
+                        getMemberRole(member) === "head" || getMemberRole(member) === "admin"
+                          ? "bg-purple-500/20 text-purple-400"
+                          : getMemberRole(member) === "moderator"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-[#1dc964]/20 text-[#1dc964]"
+                      }`}
+                    >
+                      {getMemberRole(member)}
+                    </span>
+                  </div>
+                  <h3 className="text-white font-bold text-lg mb-1">
+                    {name}
+                  </h3>
+                  {getMemberEmail(member) && (
+                    <p className="text-[#9eb7a9] text-sm mb-1 truncate">
+                      {getMemberEmail(member)}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-[#9eb7a9] mb-2">
+                    <span className="material-symbols-outlined text-sm">
+                      badge
+                    </span>
+                    <span className="truncate">
+                      {member.societyName}
+                    </span>
+                  </div>
+                  {getMemberDate(member) && (
+                    <div className="flex items-center gap-2 text-xs text-[#9eb7a9] mb-4">
+                      <span className="material-symbols-outlined text-sm">
+                        calendar_today
+                      </span>
+                      <span>Joined {getMemberDate(member)}</span>
+                    </div>
                   )}
                 </div>
-                <button className="text-[#9eb7a9] hover:text-white">
-                  <span className="material-symbols-outlined">more_vert</span>
-                </button>
-              </div>
-              <h3 className="text-white font-bold text-lg mb-1">
-                {connection.name}
-              </h3>
-              <p className="text-[#9eb7a9] text-sm mb-1">{connection.role}</p>
-              <p className="text-[#9eb7a9] text-xs mb-3">
-                {connection.company}
-              </p>
-              <div className="flex items-center gap-2 text-xs text-[#9eb7a9] mb-4">
-                <span className="material-symbols-outlined text-sm">group</span>
-                <span>{connection.connections} connections</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-[#9eb7a9] mb-4">
-                <span className="material-symbols-outlined text-sm">badge</span>
-                <span className="truncate">{connection.society}</span>
-              </div>
-              <div className="flex gap-2">
-                <button className="flex-1 px-4 py-2 rounded-lg bg-[#1dc964] text-[#111714] text-sm font-medium hover:bg-[#1dc964]/90 transition-colors">
-                  Message
-                </button>
-                <button className="px-4 py-2 rounded-lg bg-[#29382f] text-white text-sm font-medium hover:bg-[#29382f]/80 transition-colors">
-                  View Profile
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Networking Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#1a241e] border border-[#29382f] rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[#9eb7a9] text-sm mb-1">Total Connections</p>
+                <p className="text-[#9eb7a9] text-sm mb-1">Total Members</p>
                 <p className="text-3xl font-bold text-white">
-                  {connections.length}
+                  {members.length}
                 </p>
               </div>
               <span className="material-symbols-outlined text-[#1dc964] text-4xl">
@@ -219,24 +275,26 @@ export default function SocietyNetworking() {
           <div className="bg-[#1a241e] border border-[#29382f] rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[#9eb7a9] text-sm mb-1">Online Now</p>
+                <p className="text-[#9eb7a9] text-sm mb-1">Unique Roles</p>
                 <p className="text-3xl font-bold text-white">
-                  {connections.filter((c) => c.status === "online").length}
+                  {roles.length}
                 </p>
               </div>
               <span className="material-symbols-outlined text-[#1dc964] text-4xl">
-                wifi
+                diversity_3
               </span>
             </div>
           </div>
           <div className="bg-[#1a241e] border border-[#29382f] rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[#9eb7a9] text-sm mb-1">New This Month</p>
-                <p className="text-3xl font-bold text-white">12</p>
+                <p className="text-[#9eb7a9] text-sm mb-1">Societies</p>
+                <p className="text-3xl font-bold text-white">
+                  {new Set(members.map((m) => m.societyName)).size}
+                </p>
               </div>
               <span className="material-symbols-outlined text-[#1dc964] text-4xl">
-                trending_up
+                apartment
               </span>
             </div>
           </div>

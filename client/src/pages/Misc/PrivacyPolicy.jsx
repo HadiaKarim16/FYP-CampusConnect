@@ -1,5 +1,5 @@
 // src/pages/Misc/PrivacyPolicy.jsx
-import Header from "../../components/layout/Header";
+
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
 import PageContent from "../../components/common/PageContent";
@@ -11,8 +11,6 @@ export default function PrivacyPolicy() {
 
   return (
     <div className="font-display bg-[#0d1117] text-[#e6edf3] min-h-screen flex flex-col">
-      {/* Header */}
-      <Header />
 
       {/* Main Content */}
       <PageContent maxWidth="max-w-4xl" className="py-12 md:py-16">
@@ -91,40 +89,6 @@ export default function PrivacyPolicy() {
         </div>
       </PageContent>
 
-      {/* Footer */}
-      <footer className="border-t border-[#30363d] mt-16 py-8">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-[#8b949e]">
-            © 2024 CampusConnect. All rights reserved.
-          </p>
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <button
-              className="text-sm text-[#8b949e] hover:text-[#e6edf3]"
-              onClick={() => navigate("/terms")}
-            >
-              Terms of Service
-            </button>
-            <button
-              className="text-sm text-[#e6edf3] font-semibold"
-              onClick={() => navigate("/privacy")}
-            >
-              Privacy Policy
-            </button>
-            <button
-              className="text-sm text-[#8b949e] hover:text-[#e6edf3]"
-              onClick={() => navigate("/about-us")}
-            >
-              About Us
-            </button>
-            <button
-              className="text-sm text-[#8b949e] hover:text-[#e6edf3]"
-              onClick={() => navigate("/contact-us")}
-            >
-              Contact
-            </button>
-          </nav>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -8,6 +8,10 @@ export default function SocietyCardSimple({
   head,
   onJoin,
   onLearnMore,
+  joinLabel,
+  joinLoading,
+  joinDisabled,
+  joinOutlined,
   className = "",
 }) {
   return (
@@ -34,11 +38,13 @@ export default function SocietyCardSimple({
 
       <div className="flex gap-2">
         <Button
-          variant="primary"
-          className="flex-1 h-8 px-3 text-xs"
+          variant={joinOutlined ? "secondary" : "primary"}
+          className={`flex-1 h-8 px-3 text-xs flex items-center justify-center gap-2 ${joinOutlined ? "border-[#30363d] text-[#8b949e]" : ""}`}
           onClick={onJoin}
+          disabled={joinDisabled}
         >
-          Join
+          {joinLoading ? <span className="material-symbols-outlined animate-spin text-sm">sync</span> : null}
+          {joinLabel || "Join"}
         </Button>
         <Button
           variant="secondary"

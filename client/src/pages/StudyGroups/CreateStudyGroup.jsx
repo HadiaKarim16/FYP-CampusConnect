@@ -145,7 +145,7 @@ export default function CreateStudyGroup() {
             {/* Action Buttons */}
             <FormActions
               onCancel={() => goTo("/study-groups")}
-              submitLabel="Create Group"
+              submitText="Create Group"
             />
           </form>
         </Card>

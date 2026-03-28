@@ -67,7 +67,7 @@ export const joinStudyGroup = async (groupId) => {
 // Leave study group
 export const leaveStudyGroup = async (groupId) => {
   try {
-    const response = await api.delete(`/study-groups/${groupId}/leave`);
+    const response = await api.post(`/study-groups/${groupId}/leave`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

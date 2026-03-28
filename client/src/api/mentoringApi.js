@@ -2,6 +2,7 @@ import api from './axios';
 
 /**
  * Mentoring API functions
+ * Backend mounts at: /api/v1/mentors
  */
 
 // Get all mentors
@@ -24,20 +25,30 @@ export const getMentorById = async (mentorId) => {
   }
 };
 
-// Apply to become a mentor
+// Apply/Register to become a mentor
 export const applyAsMentor = async (applicationData) => {
   try {
-    const response = await api.post('/mentors/apply', applicationData);
+    const response = await api.post('/mentors/register', applicationData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Update mentor profile
-export const updateMentorProfile = async (mentorId, profileData) => {
+// Get my mentor profile if I am a mentor
+export const getMyMentorProfile = async () => {
   try {
-    const response = await api.patch(`/mentors/${mentorId}`, profileData);
+    const response = await api.get('/mentors/me');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Update mentor profile (for logged in mentor)
+export const updateMentorProfile = async (profileData) => {
+  try {
+    const response = await api.patch('/mentors/profile', profileData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -54,61 +65,70 @@ export const getMentorAvailability = async (mentorId) => {
   }
 };
 
-// Set mentor availability
-export const setMentorAvailability = async (mentorId, availabilityData) => {
+// Set mentor availability (for logged in mentor)
+export const setMentorAvailability = async (availabilityData) => {
   try {
-    const response = await api.post(`/mentors/${mentorId}/availability`, availabilityData);
+    const response = await api.put('/mentors/availability', availabilityData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Book mentoring session
+// Book mentoring session with a specific mentor
 export const bookSession = async (mentorId, sessionData) => {
   try {
-    const response = await api.post(`/mentors/${mentorId}/sessions`, sessionData);
+    const response = await api.post(`/mentors/${mentorId}/book`, sessionData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Get mentoring sessions (for student or mentor)
-export const getMentoringSessions = async (userId, role = 'student') => {
+// Get my built-in sessions (bookings) - as student or mentor
+export const getMentoringSessions = async () => {
   try {
-    const endpoint = role === 'mentor' ? `/mentors/${userId}/sessions` : `/users/${userId}/sessions`;
-    const response = await api.get(endpoint);
+    const response = await api.get('/mentors/bookings/my');
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Cancel mentoring session
-export const cancelSession = async (sessionId, reason) => {
+// Cancel mentoring session (bookingId)
+export const cancelSession = async (bookingId) => {
   try {
-    const response = await api.patch(`/sessions/${sessionId}/cancel`, { reason });
+    const response = await api.patch(`/mentors/bookings/${bookingId}/cancel`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Complete mentoring session
-export const completeSession = async (sessionId) => {
+// Confirm mentoring session (bookingId - mentor only)
+export const confirmSession = async (bookingId) => {
   try {
-    const response = await api.patch(`/sessions/${sessionId}/complete`);
+    const response = await api.patch(`/mentors/bookings/${bookingId}/confirm`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
 };
 
-// Submit session feedback
-export const submitSessionFeedback = async (sessionId, feedbackData) => {
+// Complete mentoring session (bookingId - mentor only)
+export const completeSession = async (bookingId) => {
   try {
-    const response = await api.post(`/sessions/${sessionId}/feedback`, feedbackData);
+    const response = await api.patch(`/mentors/bookings/${bookingId}/complete`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Submit session review/feedback
+export const submitSessionFeedback = async (bookingId, feedbackData) => {
+  try {
+    const response = await api.post(`/mentors/bookings/${bookingId}/review`, feedbackData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -119,38 +139,6 @@ export const submitSessionFeedback = async (sessionId, feedbackData) => {
 export const getMentorReviews = async (mentorId) => {
   try {
     const response = await api.get(`/mentors/${mentorId}/reviews`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Get mentor earnings
-export const getMentorEarnings = async (mentorId) => {
-  try {
-    const response = await api.get(`/mentors/${mentorId}/earnings`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Request payout
-export const requestPayout = async (mentorId, amount) => {
-  try {
-    const response = await api.post(`/mentors/${mentorId}/payout`, { amount });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Search mentors
-export const searchMentors = async (query, filters = {}) => {
-  try {
-    const response = await api.get('/mentors/search', {
-      params: { q: query, ...filters },
-    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

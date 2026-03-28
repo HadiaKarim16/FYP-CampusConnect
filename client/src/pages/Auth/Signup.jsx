@@ -9,10 +9,7 @@ import {
   validateSignupForm,
   VALID_ROLES,
 } from "../../utils/authValidator";
-import {
-  validateAccountUniqueness,
-  createMockAccount,
-} from "../../utils/accountService";
+import { signup as signupApi } from "../../api/authApi";
 import AuthCard from "../../components/auth/AuthCard";
 import AuthShell from "../../components/auth/AuthShell";
 import FormField from "../../components/common/FormField";
@@ -34,21 +31,22 @@ export default function Signup() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: initialRole, // Default to selected role or student
+    role: initialRole,
   });
 
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync role from role selection or stored role when available
+  // Sync role from role-selection page or Redux on initial mount only.
+  // IMPORTANT: Do NOT include form.role in deps — it causes an infinite
+  // reset loop where every radio-button click re-triggers the effect.
   React.useEffect(() => {
-    if (locationRole && form.role !== locationRole) {
-      setForm((prev) => ({ ...prev, role: locationRole }));
-      return;
+    const incomingRole = locationRole || selectedRole;
+    if (incomingRole) {
+      setForm((prev) => ({ ...prev, role: incomingRole }));
     }
-    if (!locationRole && selectedRole && form.role !== selectedRole) {
-      setForm((prev) => ({ ...prev, role: selectedRole }));
-    }
-  }, [locationRole, selectedRole, form.role]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,7 +60,7 @@ export default function Signup() {
     return validation.errors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
@@ -70,66 +68,55 @@ export default function Signup() {
       return;
     }
 
-    // STEP 1: Check account uniqueness (email and username)
-    const uniquenessCheck = validateAccountUniqueness(form.email, form.fullName);
-    if (!uniquenessCheck.isValid) {
-      // Display uniqueness error(s)
-      showError(uniquenessCheck.errors[0]); // Show first error
-      setErrors({ email: uniquenessCheck.errors[0] });
-      return;
+    setIsSubmitting(true);
+
+    try {
+      // Build FormData for the backend (supports file uploads)
+      const formData = new FormData();
+      formData.append("email", form.email);
+      formData.append("password", form.password);
+      formData.append("roles", form.role);
+
+      // Split fullName into firstName and lastName for the backend
+      const nameParts = form.fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      formData.append("firstName", firstName);
+      formData.append("lastName", lastName);
+
+      // Generate a displayName from fullName
+      const displayName = form.fullName.trim().toLowerCase().replace(/\s+/g, ".");
+      formData.append("displayName", displayName);
+
+      // Call the real backend API
+      const response = await signupApi(formData);
+
+      // Backend returns: { statusCode, data: { ...userObject }, message }
+      const user = response.data;
+
+      // Determine the user's primary role
+      const userRole = user?.roles?.[0] || form.role;
+
+      // Store only the role choice in Redux so it pre-fills the login form if needed,
+      // but DO NOT auto-login, forcing the user to use the /login page.
+      dispatch(setRole(userRole));
+
+      showSuccess("Account created successfully! Please log in.");
+      setTimeout(() => {
+        navigate("/login");
+      }, 500);
+    } catch (error) {
+      console.error("Signup error occurred");
+      const errorMessage = error?.message || "Unable to create account. Please try again.";
+      showError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // STEP 2: Create account in mock system
-    // In production, this would be a backend POST /api/auth/signup
-    const accountCreation = createMockAccount({
-      email: form.email,
-      fullName: form.fullName,
-      password: form.password,
-      role: form.role,
-    });
-
-    if (!accountCreation.success) {
-      showError(accountCreation.error || "Unable to create account");
-      return;
-    }
-
-    // STEP 3: Create user data for Redux store and Context
-    const userData = {
-      user: {
-        id: accountCreation.account.id,
-        name: form.fullName,
-        email: form.email,
-        avatar: "",
-        department: "",
-      },
-      role: form.role,
-      token: "mock-signup-token-" + Date.now(),
-    };
-
-    // STEP 4: Dispatch Redux actions to store auth and user data
-    dispatch(loginSuccess(userData));
-    dispatch(setRole(form.role));
-    dispatch(setUserProfile({
-      id: userData.user.id,
-      name: form.fullName,
-      email: form.email,
-      avatar: "",
-      department: "",
-    }));
-
-    // STEP 5: Update AuthContext as well for immediate access
-    contextLogin(userData.user, userData.token, form.role);
-
-    // Show success notification and navigate to onboarding
-    showSuccess("Account created successfully! Redirecting to onboarding...");
-    setTimeout(() => {
-      navigate("/onboarding/welcome");
-    }, 500);
   };
 
   return (
-    <AuthShell className="items-center justify-center bg-[#111714] p-4">
-      <AuthCard className="max-w-md rounded-xl border-[#3d5246] p-8 flex flex-col items-center gap-8">
+    <AuthShell className="items-center justify-center bg-[#0d1117] p-4">
+      <AuthCard className="max-w-md rounded-2xl border-white/5 p-8 flex flex-col items-center gap-8 glass shadow-2xl">
         {/* Page Heading */}
         <div className="flex w-full flex-col gap-3 text-center">
           <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
@@ -216,7 +203,7 @@ export default function Signup() {
           <div className="flex flex-col gap-4 pt-4">
             <FormActions
               onSubmit={handleSubmit}
-              submitText="Sign Up"
+              submitText={isSubmitting ? "Creating account..." : "Sign Up"}
               submitVariant="primary"
               className="flex-col-reverse"
               onCancel={null}
@@ -241,12 +228,12 @@ function RoleRadio({ name, value, label, checked, onChange, disabled = false, di
   return (
     <div className="flex flex-col gap-1">
       <label
-        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
+        className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-3 transition-colors whitespace-nowrap text-center ${
           disabled
             ? "border-[#30363d] bg-[#0d1117] opacity-60 cursor-not-allowed"
             : checked
               ? "border-[#1dc964] bg-[#1c2620] ring-2 ring-[#1dc964]/50"
-              : "border-[#3d5246] bg-[#1c2620]"
+              : "border-[#3d5246] bg-[#1c2620] hover:border-[#1dc964]/40"
         }`}
       >
         <input
@@ -256,9 +243,9 @@ function RoleRadio({ name, value, label, checked, onChange, disabled = false, di
           checked={checked}
           onChange={onChange}
           disabled={disabled}
-          className="form-radio h-5 w-5 border-[#9eb7a9] bg-transparent text-[#1dc964] focus:ring-[#1dc964]/50 focus:ring-offset-0 focus:ring-offset-transparent disabled:opacity-50"
+          className="form-radio h-4 w-4 shrink-0 border-[#9eb7a9] bg-transparent text-[#1dc964] focus:ring-[#1dc964]/50 focus:ring-offset-0 focus:ring-offset-transparent disabled:opacity-50"
         />
-        <span className="text-white text-base font-medium leading-normal">
+        <span className="text-white text-sm font-medium leading-normal">
           {label}
         </span>
       </label>

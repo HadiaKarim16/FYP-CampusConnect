@@ -1,4 +1,10 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { 
+  getMentoringSessions, 
+  confirmSession as confirmSessionApi, 
+  completeSession as completeSessionApi,
+  cancelSession as cancelSessionApi
+} from '../../api/mentoringApi';
 
 const initialState = {
   mentors: [],
@@ -21,6 +27,56 @@ const initialState = {
   loading: false,
   error: null,
 };
+
+// --- Async Thunks ---
+
+export const fetchSessionsThunk = createAsyncThunk(
+  'mentoring/fetchSessions',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await getMentoringSessions();
+      return response.data; // Paginated response.docs or direct array? Based on service: it returns paginated object.
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to fetch sessions');
+    }
+  }
+);
+
+export const confirmSessionThunk = createAsyncThunk(
+  'mentoring/confirmSession',
+  async (bookingId, { rejectWithValue }) => {
+    try {
+      const response = await confirmSessionApi(bookingId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to confirm session');
+    }
+  }
+);
+
+export const completeSessionThunk = createAsyncThunk(
+  'mentoring/completeSession',
+  async (bookingId, { rejectWithValue }) => {
+    try {
+      const response = await completeSessionApi(bookingId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to complete session');
+    }
+  }
+);
+
+export const cancelSessionThunk = createAsyncThunk(
+  'mentoring/cancelSession',
+  async (bookingId, { rejectWithValue }) => {
+    try {
+      const response = await cancelSessionApi(bookingId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to cancel session');
+    }
+  }
+);
 
 const mentoringSlice = createSlice({
   name: 'mentoring',
@@ -151,6 +207,57 @@ const mentoringSlice = createSlice({
     addSessionEarning: (state, action) => {
       state.sessionEarnings.push(action.payload);
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch Sessions
+      .addCase(fetchSessionsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchSessionsThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        // Based on service, it returns a paginated object { docs: [...] }
+        const sessions = action.payload.docs || action.payload;
+        state.scheduledSessions = sessions.filter(s => ['pending', 'confirmed'].includes(s.status));
+        state.completedSessions = sessions.filter(s => s.status === 'completed');
+        state.sessions = sessions;
+      })
+      .addCase(fetchSessionsThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Confirm/Complete/Cancel status updates
+      .addMatcher(
+        (action) => [confirmSessionThunk.fulfilled.type, completeSessionThunk.fulfilled.type, cancelSessionThunk.fulfilled.type].includes(action.type),
+        (state, action) => {
+          const updatedSession = action.payload;
+          
+          // Update in scheduledSessions
+          const sIndex = state.scheduledSessions.findIndex(s => s._id === updatedSession._id);
+          if (sIndex !== -1) {
+            if (['pending', 'confirmed'].includes(updatedSession.status)) {
+              state.scheduledSessions[sIndex] = updatedSession;
+            } else {
+              state.scheduledSessions.splice(sIndex, 1);
+            }
+          }
+
+          // Update in completedSessions
+          if (updatedSession.status === 'completed') {
+            const cIndex = state.completedSessions.findIndex(s => s._id === updatedSession._id);
+            if (cIndex === -1) {
+              state.completedSessions.unshift(updatedSession);
+            } else {
+              state.completedSessions[cIndex] = updatedSession;
+            }
+          }
+          
+          // Update in main sessions list
+          const mIndex = state.sessions.findIndex(s => s._id === updatedSession._id);
+          if (mIndex !== -1) state.sessions[mIndex] = updatedSession;
+        }
+      );
   },
 });
 

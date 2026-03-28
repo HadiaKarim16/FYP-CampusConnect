@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { selectAllMentors, setMentors } from "../../redux/slices/mentoringSlice";
 import Avatar from "../../components/common/Avatar";
+import SharedFooter from "../../components/common/SharedFooter";
 
 export default function MentorshipHub() {
   const navigate = useNavigate();
@@ -302,6 +303,7 @@ export default function MentorshipHub() {
           </div>
         </div>
       </main>
+      <SharedFooter />
     </div>
   );
 }

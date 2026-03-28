@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Avatar from "../../components/common/Avatar";
+import { applyAsMentor } from "../../api/mentoringApi";
 
 export default function MentorRegistration() {
   const navigate = useNavigate();
@@ -13,6 +14,9 @@ export default function MentorRegistration() {
     bio: "",
     availability: "",
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -38,6 +42,36 @@ export default function MentorRegistration() {
     () => (currentStep / 4) * 100,
     [currentStep]
   );
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const payload = {
+        bio: formData.bio,
+        expertise: typeof formData.expertise === 'string' 
+          ? formData.expertise.split(',').map(s => s.trim()).filter(Boolean)
+          : formData.expertise,
+        categories: ["technical"], // Default for now
+        hourlyRate: 0,
+        currency: "PKR",
+        availability: [], // They will set this on the next page
+      };
+
+      if (!payload.expertise.length) {
+        throw new Error("Please enter at least one area of expertise.");
+      }
+
+      await applyAsMentor(payload);
+      navigate("/mentor/dashboard");
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError(err?.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col font-display text-[#c9d1d9] bg-[#0d1117] overflow-x-hidden">
@@ -324,9 +358,9 @@ export default function MentorRegistration() {
                   <div className="flex gap-4">
                     <button
                       onClick={handleBack}
-                      disabled={currentStep === 1}
+                      disabled={currentStep === 1 || submitting}
                       className={`flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#161b22] border border-[#30363d] text-white text-sm font-bold leading-normal tracking-[0.015em] ${
-                        currentStep === 1
+                        currentStep === 1 || submitting
                           ? "opacity-50 cursor-not-allowed"
                           : "hover:bg-[#21262d]"
                       }`}
@@ -336,17 +370,20 @@ export default function MentorRegistration() {
                     <button
                       onClick={
                         currentStep === 4
-                          ? () => navigate("/mentor-dashboard")
+                          ? handleSubmit
                           : handleNext
                       }
-                      className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#238636] text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#2ea043]"
+                      disabled={submitting}
+                      className={`flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-[#238636] text-white text-sm font-bold leading-normal tracking-[0.015em] ${submitting ? 'opacity-50' : 'hover:bg-[#2ea043]'}`}
                     >
                       <span className="truncate">
-                        {currentStep === 4 ? "Submit" : "Next"}
+                        {submitting ? "Submitting..." : (currentStep === 4 ? "Submit" : "Next")}
                       </span>
                     </button>
                   </div>
                 </div>
+                {error && <p className="text-red-500 text-xs mt-2 text-right">{error}</p>}
+
               </div>
 
               {/* Info Box */}
