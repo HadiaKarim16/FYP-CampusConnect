@@ -2,6 +2,7 @@ import fs from "fs";
 import multer from "multer";
 import crypto from "crypto";
 import path from "path";
+import fs from "fs";
 import { ApiError } from "../utils/ApiError.js";
 
 // ── Allowed MIME types ──────────────────────────────────────────────────────
