@@ -13,7 +13,7 @@ import {
   selectActiveMessages,
   selectActiveConversationId
 } from '../../../redux/slices/messagesSlice';
-import { selectPaginatedProfiles } from '../../../redux/slices/academicNetworkSlice';
+import { fetchProfiles } from '../../../redux/slices/academicNetworkSlice';
 import { selectUnreadCount } from '../../../redux/slices/notificationsSlice';
 import { timeAgo, getInitials, formatDate } from '../../../utils/helpers';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -41,15 +41,16 @@ export default function ChatList() {
   const conversations = useSelector(selectConversations);
   const activeConversationId = useSelector(selectActiveConversationId);
   const activeMessages = useSelector(selectActiveMessages);
-  
+
   // We use profiles from Academic Network to power "New Chat" feature
   const allProfiles = useSelector(state => state.academicNetwork.items);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
-  // 1. Initial Load
+  // 1. Initial Load — fetch conversations AND connected profiles
   useEffect(() => {
     dispatch(fetchConversations());
+    dispatch(fetchProfiles()); // Load profiles with connection statuses for "New Message" modal
   }, [dispatch]);
 
   // FIX [Bug 5]: Close menu on outside click
@@ -65,7 +66,7 @@ export default function ChatList() {
   useEffect(() => {
     if (status === 'succeeded' && location.state?.openChatWith) {
       const profileId = location.state.openChatWith;
-      
+
       // Clear location state so we don't re-trigger
       navigate(location.pathname, { replace: true });
 
@@ -77,11 +78,9 @@ export default function ChatList() {
         const profile = allProfiles.find(p => p.id === profileId);
         if (profile) {
           dispatch(startNewConversation({
-             profileId: profile.id, 
-             profileName: profile.name, 
-             profileRole: profile.role 
+            targetUserId: profile.id
           })).unwrap().then(newConv => {
-             dispatch(fetchMessages(newConv.id));
+            dispatch(fetchMessages({ conversationId: newConv._id }));
           });
         }
       }
@@ -101,10 +100,11 @@ export default function ChatList() {
   }, [activeMessages]);
 
   const handleSelectConversation = (conv) => {
-    dispatch(setActiveConversation(conv.id));
-    dispatch(fetchMessages(conv.id));
+    const convId = conv._id || conv.id;
+    dispatch(setActiveConversation(convId));
+    dispatch(fetchMessages({ conversationId: convId }));
     if (conv.unreadCount > 0) {
-      dispatch(markConversationRead(conv.id));
+      dispatch(markConversationRead(convId));
     }
   };
 
@@ -124,21 +124,20 @@ export default function ChatList() {
 
   const handleStartNewChat = (profile) => {
     dispatch(startNewConversation({
-      profileId: profile.id,
-      profileName: profile.name,
-      profileRole: profile.role
+      targetUserId: profile.id
     })).unwrap().then(newConv => {
       setIsModalOpen(false);
-      dispatch(fetchMessages(newConv.id));
+      dispatch(fetchMessages({ conversationId: newConv._id }));
     });
   };
 
-  const filteredConversations = conversations.filter(c => 
+  const filteredConversations = conversations.filter(c =>
     (c.participantName || '').toLowerCase().includes((searchQuery || '').toLowerCase())
   );
 
-  const filteredProfiles = allProfiles.filter(p => 
-    (p.name || '').toLowerCase().includes((newChatSearch || '').toLowerCase()) && p.connectionStatus === 'connected'
+  const filteredProfiles = allProfiles.filter(p =>
+    (p.name || '').toLowerCase().includes((newChatSearch || '').toLowerCase()) &&
+    (p.connectionStatus === 'connected' || p.connectionStatus === 'accepted')
   );
 
   const MessageStatusIcon = ({ status }) => {
@@ -151,12 +150,12 @@ export default function ChatList() {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <main className="flex-1 flex w-full relative p-2 sm:p-4 lg:p-6 gap-4">
-        
+
         {/* LEFT PANEL: Conversation List */}
         <div className={`w-full lg:w-80 flex flex-col border border-border rounded-2xl glass backdrop-blur-xl overflow-hidden transition-all duration-300 shrink-0 ${activeConversationId ? 'hidden lg:flex' : 'flex'}`}>
           <div className="p-5 border-b border-border flex items-center justify-between bg-surface/30">
             <h1 className="text-xl font-extrabold text-text-primary tracking-tight">Messages</h1>
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
               className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-text-primary hover:text-white hover:bg-[#C7D2FE] transition-colors shadow-sm border border-border"
             >
@@ -184,14 +183,13 @@ export default function ChatList() {
               </div>
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map(conv => (
-                <div 
+                <div
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv)}
-                  className={`flex items-start gap-4 p-4 cursor-pointer border-b border-border/30 transition-all duration-200 ${
-                    activeConversationId === conv.id 
-                      ? 'bg-blue-600/15 border-l-4 border-l-blue-500 shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]' 
+                  className={`flex items-start gap-4 p-4 cursor-pointer border-b border-border/30 transition-all duration-200 ${activeConversationId === conv.id
+                      ? 'bg-blue-600/15 border-l-4 border-l-blue-500 shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]'
                       : 'hover:bg-surface/50 hover:translate-x-1'
-                  }`}
+                    }`}
                 >
                   <div className="relative flex-shrink-0">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4F46E5] to-[#4338CA] flex items-center justify-center text-white font-bold shadow-lg shadow-[#4F46E5]/20">
@@ -201,7 +199,7 @@ export default function ChatList() {
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#EEF2FF] rounded-full"></span>
                     )}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                       <h4 className={`text-sm truncate pr-2 ${conv.unreadCount > 0 ? 'text-text-primary font-bold' : 'text-text-primary font-semibold'}`}>
@@ -212,14 +210,14 @@ export default function ChatList() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                       <p className={`text-xs truncate ${conv.unreadCount > 0 ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
-                         {conv.lastMessage || 'New conversation'}
-                       </p>
-                       {conv.unreadCount > 0 && (
-                         <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shrink-0">
-                           {conv.unreadCount}
-                         </span>
-                       )}
+                      <p className={`text-xs truncate ${conv.unreadCount > 0 ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
+                        {conv.lastMessage || 'New conversation'}
+                      </p>
+                      {conv.unreadCount > 0 && (
+                        <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shrink-0">
+                          {conv.unreadCount}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -243,7 +241,7 @@ export default function ChatList() {
               <p className="max-w-xs text-sm leading-relaxed">
                 Connect with the campus community. Select a conversation to start messaging or click the "New Message" icon.
               </p>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(true)}
                 className="mt-8 px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-hover transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#4F46E5]/20"
               >
@@ -255,7 +253,7 @@ export default function ChatList() {
               {/* Chat Header */}
               <div className="h-20 border-b border-border bg-surface/40 flex items-center px-6 justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                  <button 
+                  <button
                     onClick={() => dispatch(setActiveConversation(null))}
                     className="lg:hidden w-10 h-10 rounded-xl hover:bg-[#C7D2FE] flex items-center justify-center text-text-primary transition-colors"
                   >
@@ -274,10 +272,10 @@ export default function ChatList() {
                       {activeConversation?.participantName}
                     </h2>
                     <div className="flex items-center gap-2">
-                       <span className="text-text-secondary text-[11px] font-medium">{activeConversation?.participantRole}</span>
-                       <span className={`text-[10px] ${activeConversation?.isOnline ? 'text-green-500' : 'text-text-secondary'}`}>
-                         {activeConversation?.isOnline ? 'Online' : 'Offline'}
-                       </span>
+                      <span className="text-text-secondary text-[11px] font-medium">{activeConversation?.participantRole}</span>
+                      <span className={`text-[10px] ${activeConversation?.isOnline ? 'text-green-500' : 'text-text-secondary'}`}>
+                        {activeConversation?.isOnline ? 'Online' : 'Offline'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -328,9 +326,9 @@ export default function ChatList() {
               </div>
 
               {/* Chat Messages */}
-              <div 
+              <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-cover bg-center" 
+                className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-cover bg-center"
                 style={{ backgroundImage: 'linear-gradient(rgba(13, 17, 23, 0.95), rgba(13, 17, 23, 0.95)), url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%2330363d\' fill-opacity=\'0.2\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}
               >
                 {activeMessages.length === 0 ? (
@@ -342,11 +340,11 @@ export default function ChatList() {
                     {activeMessages.map((msg, index) => {
                       const isMine = msg.senderId === 'current_user';
                       const showAvatar = !isMine && (index === 0 || activeMessages[index - 1].senderId !== msg.senderId);
-                      
+
                       return (
                         <div key={msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'}`}>
                           <div className={`flex max-w-[75%] md:max-w-[65%] gap-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-                            
+
                             {/* Avatar for others */}
                             {!isMine && (
                               <div className="w-6 shrink-0 flex items-end">
@@ -359,17 +357,17 @@ export default function ChatList() {
                             )}
 
                             {/* Bubble */}
-                            <div 
+                            <div
                               className={`
                                 relative px-3 py-2 text-[15px] shadow-sm
-                                ${isMine 
-                                  ? 'bg-primary text-white rounded-2xl rounded-tr-sm' 
+                                ${isMine
+                                  ? 'bg-primary text-white rounded-2xl rounded-tr-sm'
                                   : 'bg-surface-hover text-text-primary rounded-2xl border border-border rounded-tl-sm'
                                 }
                               `}
                             >
                               <p className="whitespace-pre-wrap leading-snug tracking-wide">{msg.content}</p>
-                              
+
                               <div className={`flex items-center justify-end gap-1 mt-1 font-mono text-[10px] ${isMine ? 'text-green-100' : 'text-text-secondary'}`}>
                                 {formatDate(msg.timestamp, 'time')}
                                 {isMine && <MessageStatusIcon status={msg.status} />}
@@ -385,7 +383,7 @@ export default function ChatList() {
 
               {/* Chat Input Area */}
               <div className="bg-surface/40 border-t border-border p-4 shrink-0">
-                <form 
+                <form
                   onSubmit={handleSendMessage}
                   className="max-w-4xl mx-auto flex items-end gap-3 bg-background/60 glass border border-border rounded-2xl p-2 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all"
                 >
@@ -400,17 +398,16 @@ export default function ChatList() {
                     className="flex-1 bg-transparent text-text-primary placeholder-[#475569] resize-none outline-none py-2 px-2 text-sm min-h-[40px] max-h-[120px] custom-scrollbar"
                     style={{ height: draft ? `${Math.min(120, draft.split('\n').length * 24 + 16)}px` : '40px' }}
                   />
-                  <button 
+                  <button
                     type="submit"
                     disabled={!draft.trim() || sendingStatus === 'sending'}
-                    className={`p-2 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
-                      draft.trim() ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-text-secondary bg-transparent'
-                    }`}
+                    className={`p-2 rounded-lg flex items-center justify-center transition-colors shrink-0 ${draft.trim() ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-text-secondary bg-transparent'
+                      }`}
                   >
                     {sendingStatus === 'sending' ? (
-                       <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+                      <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
                     ) : (
-                       <span className="material-symbols-outlined transform -rotate-45 ml-1 mr-[-4px] text-[20px]">send</span>
+                      <span className="material-symbols-outlined transform -rotate-45 ml-1 mr-[-4px] text-[20px]">send</span>
                     )}
                   </button>
                 </form>
@@ -420,13 +417,13 @@ export default function ChatList() {
         </div>
       </main>
 
-    {/* NEW CHAT MODAL */}
-    {isModalOpen && (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm transition-all duration-300">
-        <div className="w-full max-w-md rounded-2xl border border-[#ffffff]/10 glass backdrop-blur-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-fadeIn">
+      {/* NEW CHAT MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-md rounded-2xl border border-[#ffffff]/10 glass backdrop-blur-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h3 className="text-lg font-bold text-text-primary">New Message</h3>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-text-secondary hover:text-text-primary transition-colors"
               >
@@ -434,40 +431,40 @@ export default function ChatList() {
               </button>
             </div>
             <div className="p-3 border-b border-border">
-               <div className="relative">
-                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[18px]">search</span>
-                 <input
-                   autoFocus
-                   type="text"
-                   placeholder="Search connected profiles..."
-                   value={newChatSearch}
-                   onChange={(e) => setNewChatSearch(e.target.value)}
-                   className="w-full bg-background border border-border text-text-primary pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
-                 />
-               </div>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[18px]">search</span>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search connected profiles..."
+                  value={newChatSearch}
+                  onChange={(e) => setNewChatSearch(e.target.value)}
+                  className="w-full bg-background border border-border text-text-primary pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-               {filteredProfiles.length > 0 ? (
-                 filteredProfiles.map(profile => (
-                   <div 
-                     key={profile.id}
-                     onClick={() => handleStartNewChat(profile)}
-                     className="flex items-center gap-3 p-3 hover:bg-surface-hover rounded-lg cursor-pointer transition-colors"
-                   >
-                     <div className="w-10 h-10 bg-[#C7D2FE] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                       {getInitials(profile.name)}
-                     </div>
-                     <div>
-                       <div className="text-text-primary font-medium text-sm">{profile.name}</div>
-                       <div className="text-text-secondary text-xs">{profile.role} · {profile.department}</div>
-                     </div>
-                   </div>
-                 ))
-               ) : (
-                 <div className="py-8 text-center text-text-secondary text-sm">
-                   {newChatSearch ? 'No connected profiles found matching your search.' : 'You have no connections yet.'}
-                 </div>
-               )}
+              {filteredProfiles.length > 0 ? (
+                filteredProfiles.map(profile => (
+                  <div
+                    key={profile.id}
+                    onClick={() => handleStartNewChat(profile)}
+                    className="flex items-center gap-3 p-3 hover:bg-surface-hover rounded-lg cursor-pointer transition-colors"
+                  >
+                    <div className="w-10 h-10 bg-[#C7D2FE] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      {getInitials(profile.name)}
+                    </div>
+                    <div>
+                      <div className="text-text-primary font-medium text-sm">{profile.name}</div>
+                      <div className="text-text-secondary text-xs">{profile.role} · {profile.department}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-text-secondary text-sm">
+                  {newChatSearch ? 'No connected profiles found matching your search.' : 'You have no connections yet.'}
+                </div>
+              )}
             </div>
           </div>
         </div>
