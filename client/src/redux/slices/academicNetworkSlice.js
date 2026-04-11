@@ -1,5 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getNetworkProfiles, sendConnectionRequest as sendConnectionRequestApi } from '../../api/networkApi';
+import {
+  getNetworkProfiles,
+  sendConnectionRequest as sendConnectionRequestApi,
+  acceptConnectionRequest as acceptConnectionRequestApi,
+  rejectConnectionRequest as rejectConnectionRequestApi,
+  getPendingRequests as getPendingRequestsApi,
+} from '../../api/networkApi';
 
 export const fetchProfiles = createAsyncThunk(
   'academicNetwork/fetchProfiles',
@@ -24,9 +30,45 @@ export const sendConnectionRequest = createAsyncThunk(
   }
 );
 
+export const fetchPendingRequests = createAsyncThunk(
+  'academicNetwork/fetchPendingRequests',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await getPendingRequestsApi();
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to fetch pending requests');
+    }
+  }
+);
+
+export const acceptConnection = createAsyncThunk(
+  'academicNetwork/acceptConnection',
+  async (connectionId, { rejectWithValue }) => {
+    try {
+      await acceptConnectionRequestApi(connectionId);
+      return connectionId;
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to accept connection');
+    }
+  }
+);
+
+export const rejectConnection = createAsyncThunk(
+  'academicNetwork/rejectConnection',
+  async (connectionId, { rejectWithValue }) => {
+    try {
+      await rejectConnectionRequestApi(connectionId);
+      return connectionId;
+    } catch (error) {
+      return rejectWithValue(error?.message || 'Failed to reject connection');
+    }
+  }
+);
+
 const initialState = {
   items: [],
   filteredItems: [],
+  pendingRequests: [],
   status: 'idle',
   error: null,
   actionLoading: {},
@@ -118,8 +160,9 @@ const academicNetworkSlice = createSlice({
       })
       .addCase(fetchProfiles.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       })
+      // Send connection request
       .addCase(sendConnectionRequest.pending, (state, action) => {
         state.actionLoading[action.meta.arg] = true;
       })
@@ -127,12 +170,23 @@ const academicNetworkSlice = createSlice({
         state.actionLoading[action.payload] = false;
         const profile = state.items.find(p => p.id === action.payload);
         if (profile) profile.connectionStatus = 'pending';
-
         const filteredProfile = state.filteredItems.find(p => p.id === action.payload);
         if (filteredProfile) filteredProfile.connectionStatus = 'pending';
       })
       .addCase(sendConnectionRequest.rejected, (state, action) => {
         state.actionLoading[action.meta.arg] = false;
+      })
+      // Fetch pending requests
+      .addCase(fetchPendingRequests.fulfilled, (state, action) => {
+        state.pendingRequests = action.payload;
+      })
+      // Accept connection
+      .addCase(acceptConnection.fulfilled, (state, action) => {
+        state.pendingRequests = state.pendingRequests.filter(r => r._id !== action.payload);
+      })
+      // Reject connection
+      .addCase(rejectConnection.fulfilled, (state, action) => {
+        state.pendingRequests = state.pendingRequests.filter(r => r._id !== action.payload);
       });
   },
 });
@@ -152,5 +206,6 @@ export const selectTotalPages = (state) => {
 export const selectFilters = (state) => state.academicNetwork.filters;
 export const selectCurrentPage = (state) => state.academicNetwork.pagination.currentPage;
 export const selectActionLoading = (state) => state.academicNetwork.actionLoading;
+export const selectPendingRequests = (state) => state.academicNetwork.pendingRequests || [];
 
 export default academicNetworkSlice.reducer;

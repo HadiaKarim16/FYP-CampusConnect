@@ -20,6 +20,7 @@ import {
   createTask,
   selectAllTasks,
 } from "@/redux/slices/tasksSlice";
+import ConnectionRequests from "@/components/common/ConnectionRequests";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -183,8 +184,8 @@ export default function StudentDashboard() {
                         className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-background hover:border-primary/30 transition-colors text-left"
                       >
                         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center text-[10px] shrink-0 ${isDone
-                            ? "bg-emerald-500 border-emerald-500 text-white"
-                            : "border-border"
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "border-border"
                           }`}>
                           {isDone && "✓"}
                         </div>
@@ -286,6 +287,9 @@ export default function StudentDashboard() {
 
           {/* Right Column (1/3) */}
           <div className="space-y-6">
+            {/* Connection Requests */}
+            <ConnectionRequests />
+
             {/* Mentoring Sessions */}
             <div className="bg-surface border border-border rounded-xl p-5">
               <h2 className="text-text-primary text-lg font-bold mb-4">Mentoring Sessions</h2>
@@ -307,8 +311,8 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${session.status === "confirmed"
-                          ? "bg-primary/15 text-primary"
-                          : "bg-amber-500/15 text-amber-500"
+                        ? "bg-primary/15 text-primary"
+                        : "bg-amber-500/15 text-amber-500"
                         }`}>
                         {session.status}
                       </span>

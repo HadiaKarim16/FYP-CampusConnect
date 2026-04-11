@@ -45,7 +45,35 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // If authenticated, ping the backend to verify the token is still valid
+      // Step 1: Check JWT expiry client-side (decode without verification)
+      try {
+        const payloadBase64 = auth.token.split('.')[1];
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64));
+          const expiresAt = payload.exp * 1000; // JWT exp is in seconds
+          const bufferMs = 5 * 60 * 1000; // 5 minute buffer
+          if (Date.now() >= expiresAt - bufferMs) {
+            console.warn("JWT expired or about to expire. Clearing session.");
+            localStorage.removeItem('authState');
+            setAuth({
+              isAuthenticated: false, user: null, token: null,
+              role: null, onboardingCompleted: false, loading: false,
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        // Malformed token — clear it
+        console.warn("Malformed JWT. Clearing session.");
+        localStorage.removeItem('authState');
+        setAuth({
+          isAuthenticated: false, user: null, token: null,
+          role: null, onboardingCompleted: false, loading: false,
+        });
+        return;
+      }
+
+      // Step 2: If token looks valid, verify with backend
       try {
         const { getCurrentUser } = await import('../api/authApi');
         await getCurrentUser();
@@ -54,12 +82,8 @@ export function AuthProvider({ children }) {
         console.warn("Session verification failed. Clearing local session.", error);
         localStorage.removeItem('authState');
         setAuth({
-          isAuthenticated: false,
-          user: null,
-          token: null,
-          role: null,
-          onboardingCompleted: false,
-          loading: false,
+          isAuthenticated: false, user: null, token: null,
+          role: null, onboardingCompleted: false, loading: false,
         });
       }
     };

@@ -2,54 +2,28 @@ import api from './axios';
 
 /**
  * Academic Network API — Real backend calls
- * Fetches real user profiles from the backend search endpoint.
- * Connection requests are stored per-user in localStorage until a
- * dedicated backend connections model is built.
+ * All connection operations persist in MongoDB.
  */
 
-// Helper to get the current user's connection storage key
-const getConnectionsKey = () => {
-    try {
-        const authState = JSON.parse(localStorage.getItem('authState') || '{}');
-        const userId = authState?.user?._id || authState?.user?.id;
-        return userId ? `cc_connections_${userId}` : null;
-    } catch {
-        return null;
-    }
-};
-
-const loadConnections = () => {
-    const key = getConnectionsKey();
-    if (!key) return {};
-    try {
-        return JSON.parse(localStorage.getItem(key) || '{}');
-    } catch {
-        return {};
-    }
-};
-
-const saveConnections = (connections) => {
-    const key = getConnectionsKey();
-    if (!key) return;
-    localStorage.setItem(key, JSON.stringify(connections));
-};
-
-// Fetch all user profiles for the academic network directory
+// Fetch all user profiles + their connection status for the current user
 export const getNetworkProfiles = async (params = {}) => {
     try {
-        // Fetch with no limit to get all users
         const response = await api.get('/users/search', { params: { ...params, limit: 0 } });
         const payload = response.data?.data;
         const docs = payload?.docs || payload?.users || [];
 
-        // Load persisted connection statuses for current user
-        const connections = loadConnections();
+        // Get current user ID to exclude self
+        let currentUserId = null;
+        try {
+            const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+            currentUserId = authState?.user?._id || authState?.user?.id;
+        } catch { /* ignore */ }
 
-        // Normalize each user into the profile shape the UI expects
-        return docs.map(user => {
-            const id = user._id;
-            return {
-                id,
+        // Filter out the logged-in user from the list
+        const profiles = docs
+            .filter(user => user._id !== currentUserId)
+            .map(user => ({
+                id: user._id,
                 name: user.profile?.displayName
                     || `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim()
                     || user.email?.split('@')[0]
@@ -59,34 +33,76 @@ export const getNetworkProfiles = async (params = {}) => {
                 bio: user.profile?.bio || '',
                 role: (user.roles || []).includes('mentor') ? 'Mentor'
                     : (user.roles || []).includes('society_head') ? 'Society Head'
-                        : (user.roles || []).includes('admin') ? 'Faculty'
+                        : (user.roles || []).includes('admin') ? 'Admin'
                             : 'Student',
                 year: user.academic?.semester ? `Semester ${user.academic.semester}` : '',
                 avatar: user.profile?.avatar || '',
                 isOnline: false,
                 academicInterests: user.interests || user.academic?.interests || [],
                 societies: (user.societies || []).map(s => typeof s === 'string' ? s : s._id),
-                connectionStatus: connections[id] || 'none',
-            };
-        });
+                connectionStatus: 'none', // Will be updated by bulk status call
+                connectionId: null,
+            }));
+
+        // Bulk-fetch connection statuses from backend
+        if (profiles.length > 0) {
+            try {
+                const userIds = profiles.map(p => p.id);
+                const statusResponse = await api.post('/connections/statuses', { userIds });
+                const statuses = statusResponse.data?.statuses || {};
+
+                profiles.forEach(profile => {
+                    const info = statuses[profile.id];
+                    if (info) {
+                        profile.connectionStatus = info.status; // "pending" or "accepted"
+                        profile.connectionId = info.connectionId;
+                        profile.connectionDirection = info.direction; // "outgoing" or "incoming"
+                    }
+                });
+            } catch (statusErr) {
+                console.warn('[NetworkApi] Could not fetch connection statuses:', statusErr);
+            }
+        }
+
+        return profiles;
     } catch (error) {
         console.error('[NetworkApi] Failed to fetch profiles:', error);
         throw error.response?.data || error;
     }
 };
 
-// Send a connection request — persists to per-user localStorage
+// Send a connection request (real backend)
 export const sendConnectionRequest = async (profileId) => {
-    const connections = loadConnections();
-    connections[profileId] = 'pending';
-    saveConnections(connections);
-    return { success: true, profileId };
+    const response = await api.post(`/connections/request/${profileId}`);
+    return { success: true, profileId, connection: response.data?.connection };
 };
 
-// Accept a connection (upgrade from pending to connected)
-export const acceptConnection = async (profileId) => {
-    const connections = loadConnections();
-    connections[profileId] = 'connected';
-    saveConnections(connections);
-    return { success: true, profileId };
+// Accept a connection request (real backend)
+export const acceptConnectionRequest = async (connectionId) => {
+    const response = await api.patch(`/connections/accept/${connectionId}`);
+    return response.data;
+};
+
+// Reject a connection request (real backend)
+export const rejectConnectionRequest = async (connectionId) => {
+    const response = await api.patch(`/connections/reject/${connectionId}`);
+    return response.data;
+};
+
+// Get pending connection requests (real backend)
+export const getPendingRequests = async () => {
+    const response = await api.get('/connections/pending');
+    return response.data?.requests || [];
+};
+
+// Get all accepted connections (real backend)
+export const getAcceptedConnections = async () => {
+    const response = await api.get('/connections');
+    return response.data?.connections || [];
+};
+
+// Remove a connection (real backend)
+export const removeConnection = async (connectionId) => {
+    const response = await api.delete(`/connections/${connectionId}`);
+    return response.data;
 };

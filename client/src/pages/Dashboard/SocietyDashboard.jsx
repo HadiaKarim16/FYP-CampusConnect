@@ -15,6 +15,7 @@ import {
   selectUpcomingEvents,
   fetchUpcomingEvents,
 } from "@/redux/slices/eventSlice";
+import ConnectionRequests from "@/components/common/ConnectionRequests";
 
 /* ─── Sidebar Nav Items ─── */
 const NAV_ITEMS = [
@@ -184,6 +185,9 @@ export default function SocietyDashboard() {
             </h1>
             <p className="text-text-secondary text-sm mt-1">Oversee your societies and campus impact.</p>
           </div>
+
+          {/* Connection Requests */}
+          <ConnectionRequests />
 
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

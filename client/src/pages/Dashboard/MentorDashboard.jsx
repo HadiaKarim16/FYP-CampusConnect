@@ -13,6 +13,7 @@ import {
   selectMentoringLoading,
 } from "../../redux/slices/mentoringSlice";
 import { getMyMentorProfile } from "../../api/mentoringApi";
+import ConnectionRequests from "../../components/common/ConnectionRequests";
 
 export default function MentorDashboard() {
   const navigate = useNavigate();
@@ -107,6 +108,9 @@ export default function MentorDashboard() {
               </button>
             </div>
           )}
+
+          {/* Connection Requests */}
+          <ConnectionRequests />
 
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
