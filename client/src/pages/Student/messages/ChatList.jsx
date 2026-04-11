@@ -36,16 +36,16 @@ export default function ChatList() {
   const { addNotification } = useNotification();
   const unreadCount = useSelector(selectUnreadCount);
 
-  const status = useSelector(state => state.messages.status);
-  const sendingStatus = useSelector(state => state.messages.sendingStatus);
+  const status = useSelector(state => state.messages?.status || 'idle');
+  const sendingStatus = useSelector(state => state.messages?.sendingStatus || 'idle');
   const conversations = useSelector(selectConversations);
   const activeConversationId = useSelector(selectActiveConversationId);
   const activeMessages = useSelector(selectActiveMessages);
 
   // We use profiles from Academic Network to power "New Chat" feature
-  const allProfiles = useSelector(state => state.academicNetwork.items);
+  const allProfiles = useSelector(state => state.academicNetwork?.items || []);
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId);
+  const activeConversation = conversations.find(c => (c._id || c.id) === activeConversationId);
 
   // 1. Initial Load — fetch conversations AND connected profiles
   useEffect(() => {
@@ -187,8 +187,8 @@ export default function ChatList() {
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv)}
                   className={`flex items-start gap-4 p-4 cursor-pointer border-b border-border/30 transition-all duration-200 ${activeConversationId === conv.id
-                      ? 'bg-blue-600/15 border-l-4 border-l-blue-500 shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]'
-                      : 'hover:bg-surface/50 hover:translate-x-1'
+                    ? 'bg-blue-600/15 border-l-4 border-l-blue-500 shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]'
+                    : 'hover:bg-surface/50 hover:translate-x-1'
                     }`}
                 >
                   <div className="relative flex-shrink-0">
