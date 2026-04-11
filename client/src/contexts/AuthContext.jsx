@@ -159,6 +159,16 @@ export function AuthProvider({ children }) {
     // Clear from localStorage
     localStorage.removeItem('authState');
 
+    // Clean up any legacy mock data keys (cc_mock_*) to prevent stale data leaking
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('cc_mock_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
     // Optional: Clear from sessionStorage if used
     sessionStorage.clear();
   }, []);
