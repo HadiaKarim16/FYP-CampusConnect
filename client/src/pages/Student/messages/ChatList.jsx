@@ -333,7 +333,7 @@ export default function ChatList() {
               >
                 {activeMessages.length === 0 ? (
                   <div className="text-center py-10 mt-20 text-text-secondary text-sm bg-surface max-w-xs mx-auto rounded-lg border border-border px-4">
-                    Send a message to start the conversation with {activeConversation?.participantName.split(' ')[0]}.
+                    Send a message to start the conversation with {(activeConversation?.participantName || 'them').split(' ')[0]}.
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 max-w-3xl mx-auto">
