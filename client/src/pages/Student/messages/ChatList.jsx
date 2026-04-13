@@ -128,6 +128,9 @@ export default function ChatList() {
     })).unwrap().then(newConv => {
       setIsModalOpen(false);
       dispatch(fetchMessages({ conversationId: newConv._id }));
+    }).catch(err => {
+      console.error('[ChatList] Failed to start conversation:', err);
+      addNotification({ type: 'error', title: 'Failed', message: err || 'Could not start conversation. Please try again.' });
     });
   };
 
@@ -338,11 +341,18 @@ export default function ChatList() {
                 ) : (
                   <div className="flex flex-col gap-3 max-w-3xl mx-auto">
                     {activeMessages.map((msg, index) => {
-                      const isMine = msg.senderId === 'current_user';
-                      const showAvatar = !isMine && (index === 0 || activeMessages[index - 1].senderId !== msg.senderId);
+                      // Get current user ID to determine which messages are "mine"
+                      let currentUserId = null;
+                      try {
+                        const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+                        currentUserId = authState?.user?._id || authState?.user?.id;
+                      } catch { /* ignore */ }
+                      const msgSenderId = msg.sender?._id?.toString() || msg.sender?.toString() || msg.senderId;
+                      const isMine = msgSenderId === currentUserId;
+                      const showAvatar = !isMine && (index === 0 || (activeMessages[index - 1].sender?.toString() || activeMessages[index - 1].senderId) !== msgSenderId);
 
                       return (
-                        <div key={msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        <div key={msg._id || msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'}`}>
                           <div className={`flex max-w-[75%] md:max-w-[65%] gap-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
 
                             {/* Avatar for others */}
@@ -350,7 +360,7 @@ export default function ChatList() {
                               <div className="w-6 shrink-0 flex items-end">
                                 {showAvatar && (
                                   <div className="w-6 h-6 rounded-full bg-[#C7D2FE] text-[10px] flex items-center justify-center text-white">
-                                    {getInitials(msg.senderName)}
+                                    {getInitials(msg.sender?.profile?.displayName || msg.senderName || 'U')}
                                   </div>
                                 )}
                               </div>

@@ -1,15 +1,96 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getMyChats, getChatMessages, sendMessage as sendMessageApi, markChatAsRead, createOrGetDM } from '../../api/chatApi';
 
-// ─── Async Thunks (now calling real backend at /api/v1/chats) ─────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Normalize a backend chat object into the shape ChatList expects.
+ * Backend chat has: _id, type, members[{userId: {_id, profile}, role}], lastMessage, updatedAt
+ * ChatList expects: _id/id, participantName, participantId, participantRole, lastMessage, lastMessageAt, unreadCount
+ */
+const normalizeConversation = (chat, currentUserId) => {
+  const chatObj = chat._doc || chat; // handle mongoose docs or plain objects
+
+  // For DM chats, find the "other" member
+  let participantName = 'Unknown User';
+  let participantId = null;
+  let participantRole = 'Student';
+  let participantAvatar = '';
+
+  if (chatObj.type === 'dm' && chatObj.members) {
+    const otherMember = chatObj.members.find(m => {
+      const mId = m.userId?._id?.toString() || m.userId?.toString();
+      return mId !== currentUserId;
+    });
+
+    if (otherMember) {
+      const user = otherMember.userId; // populated user object
+      if (typeof user === 'object' && user !== null) {
+        participantName = user.profile?.displayName
+          || `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim()
+          || 'Unknown User';
+        participantId = user._id?.toString();
+        participantAvatar = user.profile?.avatar || '';
+      } else {
+        // userId is just an ObjectId string (not populated)
+        participantId = user?.toString();
+      }
+      participantRole = otherMember.role || 'member';
+    }
+  } else if (chatObj.name) {
+    // Group chat
+    participantName = chatObj.name;
+  }
+
+  // Extract last message content
+  let lastMessageText = '';
+  let lastMessageAt = chatObj.updatedAt;
+  if (chatObj.lastMessage) {
+    if (typeof chatObj.lastMessage === 'object') {
+      lastMessageText = chatObj.lastMessage.content || '';
+      lastMessageAt = chatObj.lastMessage.createdAt || chatObj.updatedAt;
+    } else {
+      lastMessageText = chatObj.lastMessage;
+    }
+  }
+
+  return {
+    _id: chatObj._id?.toString() || chatObj.id,
+    id: chatObj._id?.toString() || chatObj.id,
+    type: chatObj.type || 'dm',
+    participantName,
+    participantId,
+    participantRole,
+    participantAvatar,
+    lastMessage: lastMessageText,
+    lastMessageAt,
+    unreadCount: chatObj.myUnreadCount || 0,
+    isOnline: false,
+    members: chatObj.members,
+  };
+};
+
+// ─── Async Thunks (calling real backend at /api/v1/chats) ─────────────────
 
 export const fetchConversations = createAsyncThunk(
   'messages/fetchConversations',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
       const response = await getMyChats();
       // Backend returns ApiResponse: { statusCode, data, message }
-      return response.data;
+      const chats = response.data;
+
+      // Get current user ID for normalization
+      let currentUserId = null;
+      try {
+        const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+        currentUserId = authState?.user?._id || authState?.user?.id;
+      } catch { /* ignore */ }
+
+      const normalized = (Array.isArray(chats) ? chats : []).map(chat =>
+        normalizeConversation(chat, currentUserId)
+      );
+      return normalized;
     } catch (error) {
       return rejectWithValue(error?.message || 'Failed to fetch conversations');
     }
@@ -57,7 +138,17 @@ export const startNewConversation = createAsyncThunk(
   async ({ targetUserId }, { rejectWithValue }) => {
     try {
       const response = await createOrGetDM(targetUserId);
-      return response.data;
+      // response is { statusCode, data: chat, message }
+      const chat = response.data;
+
+      // Get current user ID for normalization
+      let currentUserId = null;
+      try {
+        const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+        currentUserId = authState?.user?._id || authState?.user?.id;
+      } catch { /* ignore */ }
+
+      return normalizeConversation(chat, currentUserId);
     } catch (error) {
       return rejectWithValue(error?.message || 'Failed to start conversation');
     }
@@ -118,7 +209,7 @@ const messagesSlice = createSlice({
       })
       .addCase(fetchConversations.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.conversations = Array.isArray(action.payload) ? action.payload : [];
+        state.conversations = action.payload;
       })
       .addCase(fetchConversations.rejected, (state, action) => {
         state.status = 'failed';
