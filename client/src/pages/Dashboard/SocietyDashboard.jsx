@@ -55,13 +55,47 @@ export default function SocietyDashboard() {
     .substring(0, 2)
     .toUpperCase();
 
+  const [fetchedEvents, setFetchedEvents] = useState([]);
+
   useEffect(() => {
     const userId = user?._id || user?.id;
     if (userId) {
       dispatch(fetchUserSocieties(userId));
-      dispatch(fetchUpcomingEvents({ campusId: user.campusId, limit: 5 }));
+      // fetchUpcomingEvents dispatch removed; we will securely pull society-specific events below
     }
   }, [dispatch, user]);
+
+  useEffect(() => {
+    const fetchSocEvents = async () => {
+      try {
+        if (!societies || societies.length === 0) {
+          setFetchedEvents([]);
+          return;
+        }
+        const { getAllEvents } = await import("@/api/eventApi");
+        const results = await Promise.all(
+          societies.map(async (soc) => {
+            try {
+              const res = await getAllEvents({ societyId: soc._id || soc.id, limit: 5 });
+              return res.data?.docs || res.data?.items || (Array.isArray(res.data) ? res.data : (res.docs || []));
+            } catch (err) {
+              return [];
+            }
+          })
+        );
+        const allEvents = results.flat();
+        const uniqueEvents = Array.from(new Map(allEvents.map(e => [e._id || e.id, e])).values())
+          .sort((a, b) => new Date(a.startAt) - new Date(b.startAt))
+          .filter(e => new Date(e.startAt) >= new Date() || e.status === 'upcoming' || e.status === 'registration')
+          .slice(0, 5);
+        setFetchedEvents(uniqueEvents);
+      } catch (err) {
+        console.error("Failed to fetch society dashboard events:", err);
+      }
+    };
+
+    fetchSocEvents();
+  }, [societies]);
 
   useEffect(() => {
     const userId = user?._id || user?.id;
@@ -84,7 +118,7 @@ export default function SocietyDashboard() {
   const statCards = [
     { label: "My Societies", value: societies.length, icon: "groups", gradient: "from-primary to-indigo-800" },
     { label: "Total Members", value: totalMembers, icon: "people", gradient: "from-cyan-600 to-cyan-800" },
-    { label: "Upcoming Events", value: upcomingEvents.length, icon: "event", gradient: "from-emerald-600 to-emerald-800" },
+    { label: "Upcoming Events", value: fetchedEvents.length, icon: "event", gradient: "from-emerald-600 to-emerald-800" },
     { label: "Pending Requests", value: memberRequests.length, icon: "person_add", gradient: "from-amber-600 to-amber-800" },
   ];
 
@@ -320,9 +354,9 @@ export default function SocietyDashboard() {
                   <span className="material-symbols-outlined text-[16px]">add</span> Add Event
                 </button>
               </div>
-              {upcomingEvents.length > 0 ? (
+              {fetchedEvents.length > 0 ? (
                 <div className="space-y-3">
-                  {upcomingEvents.map((event) => {
+                  {fetchedEvents.map((event) => {
                     const startDate = new Date(event.startAt);
                     const month = startDate.toLocaleString("default", { month: "short" }).toUpperCase();
                     const day = startDate.getDate().toString().padStart(2, "0");
@@ -347,7 +381,11 @@ export default function SocietyDashboard() {
                   })}
                 </div>
               ) : (
-                <p className="text-text-secondary text-sm text-center py-6">No upcoming events scheduled.</p>
+                <div className="flex flex-col items-center py-8 text-center text-text-secondary">
+                  <span className="material-symbols-outlined text-4xl mb-2 opacity-50">event_busy</span>
+                  <p className="text-sm font-medium text-text-primary">No upcoming events!</p>
+                  <p className="text-xs mt-1">Host an event to engage with your society members.</p>
+                </div>
               )}
             </div>
 
