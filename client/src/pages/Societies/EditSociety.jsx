@@ -43,9 +43,9 @@ export default function EditSociety() {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const societyId = Number(id);
+  const societyId = id;
   const society = useSelector(selectSocietyById(societyId));
-  
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -180,11 +180,10 @@ export default function EditSociety() {
                     key={emoji}
                     type="button"
                     onClick={() => setFormData({ ...formData, logo: emoji })}
-                    className={`aspect-square p-3 text-3xl rounded-lg border-2 transition-all hover:scale-110 ${
-                      formData.logo === emoji
+                    className={`aspect-square p-3 text-3xl rounded-lg border-2 transition-all hover:scale-110 ${formData.logo === emoji
                         ? "border-primary bg-primary/20 scale-105"
                         : "border-border hover:border-primary/50"
-                    }`}
+                      }`}
                   >
                     {emoji}
                   </button>

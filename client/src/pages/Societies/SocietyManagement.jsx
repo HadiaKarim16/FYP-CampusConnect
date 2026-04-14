@@ -159,7 +159,7 @@ export default function SocietyManagement() {
               Edit Society
             </button>
             <button
-              onClick={() => navigate("/society/events/create")}
+              onClick={() => navigate("/events/create")}
               className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
             >
               Add Event
@@ -310,7 +310,7 @@ export default function SocietyManagement() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Society Events ({events.length})</h2>
               <button
-                onClick={() => navigate("/society/events/create")}
+                onClick={() => navigate("/events/create")}
                 className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90"
               >
                 Create Event
