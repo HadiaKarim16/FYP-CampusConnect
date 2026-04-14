@@ -184,15 +184,15 @@ export default function AppRoutes() {
           {/* Public society detail */}
           <Route path="/societies/:id" element={<SocietyDetail />} />
 
-          {/* Event Dashboard inside Layout */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/event/dashboard" element={<EventDashboard />} />
-          </Route>
+        </Route>
 
-          {/* Create Event — society_head or admin */}
-          <Route element={<ProtectedRoute requiredRole={['society_head', 'admin']} />}>
-            <Route path="/events/create" element={<CreateEventPage />} />
-          </Route>
+        {/* ========== STANDALONE MANAGEMENT ROUTES (NO Layout) ========== */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/event/dashboard" element={<EventDashboard />} />
+        </Route>
+
+        <Route element={<ProtectedRoute requiredRole={['society_head', 'admin']} />}>
+          <Route path="/events/create" element={<CreateEventPage />} />
         </Route>
 
         {/* ========== MENTOR REGISTRATION / APPLICATION ROUTES (Standalone, NO Layout) ========== */}
