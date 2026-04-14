@@ -14,7 +14,8 @@ export default function SocietyNetworking() {
     const fetchMembers = async () => {
       try {
         setLoading(true);
-        const socRes = await getUserSocieties(user?._id);
+        const userId = user?._id || user?.id;
+        const socRes = await getUserSocieties(userId);
         const societies = socRes.data || socRes || [];
 
         let allMembers = [];
@@ -48,7 +49,7 @@ export default function SocietyNetworking() {
       }
     };
 
-    if (user?._id) fetchMembers();
+    if (user?._id || user?.id) fetchMembers();
   }, [user]);
 
   const getMemberName = (m) =>
@@ -134,8 +135,8 @@ export default function SocietyNetworking() {
             <button
               onClick={() => setFilter("all")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "all"
-                  ? "bg-primary text-white"
-                  : "bg-surface text-text-secondary hover:bg-surface/80 hover:text-text-primary"
+                ? "bg-primary text-white"
+                : "bg-surface text-text-secondary hover:bg-surface/80 hover:text-text-primary"
                 }`}
             >
               All Members ({members.length})
@@ -145,8 +146,8 @@ export default function SocietyNetworking() {
                 key={role}
                 onClick={() => setFilter(role)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${filter === role
-                    ? "bg-primary text-white"
-                    : "bg-surface text-text-secondary hover:bg-surface/80 hover:text-text-primary"
+                  ? "bg-primary text-white"
+                  : "bg-surface text-text-secondary hover:bg-surface/80 hover:text-text-primary"
                   }`}
               >
                 {role} ({members.filter((m) => getMemberRole(m) === role).length}
@@ -215,10 +216,10 @@ export default function SocietyNetworking() {
                     </div>
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getMemberRole(member) === "head" || getMemberRole(member) === "admin"
-                          ? "bg-purple-500/20 text-purple-400"
-                          : getMemberRole(member) === "moderator"
-                            ? "bg-blue-500/20 text-blue-400"
-                            : "bg-primary/20 text-primary"
+                        ? "bg-purple-500/20 text-purple-400"
+                        : getMemberRole(member) === "moderator"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-primary/20 text-primary"
                         }`}
                     >
                       {getMemberRole(member)}
