@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { createEvent, updateEvent } from '../../api/eventApi';
 import { getUserSocieties } from '../../api/societyApi';
+import { getAllCampuses } from '../../api/campusApi';
 
 export default function CreateEventPage() {
   const { user } = useAuth();
@@ -12,10 +13,12 @@ export default function CreateEventPage() {
 
   const [societies, setSocieties] = useState([]);
   const [loadingSocieties, setLoadingSocieties] = useState(true);
+  const [campuses, setCampuses] = useState([]);
 
   const [formData, setFormData] = useState({
     title: '',
     societyId: '',
+    campusId: user?.campusId || '',
     description: '',
     location: '',
     onlineUrl: '',
@@ -52,7 +55,19 @@ export default function CreateEventPage() {
         setLoadingSocieties(false);
       }
     };
+
+    const fetchCampuses = async () => {
+      try {
+        const res = await getAllCampuses();
+        const campusList = res.data?.docs || res.data?.campuses || res.data || res.docs || [];
+        setCampuses(Array.isArray(campusList) ? campusList : []);
+      } catch (err) {
+        console.error("Failed to fetch campuses:", err);
+      }
+    };
+
     fetchSocieties();
+    fetchCampuses();
   }, [user]);
 
   const handleChange = (e) => {
@@ -78,10 +93,13 @@ export default function CreateEventPage() {
     if (!formData.societyId) {
       newErrors.societyId = 'Please select an organizing society.';
     }
+    if (!formData.campusId) {
+      newErrors.campusId = 'Please select a campus for this event.';
+    }
     if (!formData.description || formData.description.trim().length < 10) {
       newErrors.description = 'Description requires at least 10 characters.';
     }
-    
+
     if (formData.venueType === 'physical' && (!formData.location || formData.location.trim() === '')) {
       newErrors.location = 'Location is required for physical events.';
     }
@@ -114,14 +132,14 @@ export default function CreateEventPage() {
     e.preventDefault();
 
     if (!validateForm()) {
-        addNotification({
-            type: 'error',
-            title: 'Validation Error',
-            message: 'Please fix the errors in the form before submitting.'
-        });
-        return;
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Please fix the errors in the form before submitting.'
+      });
+      return;
     }
-    
+
     setIsSubmitting(true);
 
     try {
@@ -129,16 +147,16 @@ export default function CreateEventPage() {
         title: formData.title.trim(),
         description: formData.description.trim(),
         societyId: formData.societyId,
-        campusId: user?.campusId,
+        campusId: formData.campusId || user?.campusId,
         eventType: formData.eventType,
         category: formData.category,
         participationType: formData.participationType,
         startAt: new Date(formData.startDate).toISOString(),
         endAt: new Date(formData.endDate).toISOString(),
-        venue: { 
-            type: formData.venueType, 
-            address: formData.location.trim(),
-            onlineUrl: formData.onlineUrl.trim()
+        venue: {
+          type: formData.venueType,
+          address: formData.location.trim(),
+          onlineUrl: formData.onlineUrl.trim()
         },
         teamConfig: { minSize: 1, maxSize: 5 },
         isOnlineCompetition: true,
@@ -154,7 +172,7 @@ export default function CreateEventPage() {
       }
 
       let submitData = payload;
-      
+
       if (coverFile) {
         submitData = new FormData();
         Object.keys(payload).forEach(key => {
@@ -168,7 +186,7 @@ export default function CreateEventPage() {
       }
 
       await createEvent(submitData);
-      
+
       addNotification({
         type: 'success',
         title: 'Event Created!',
@@ -202,7 +220,7 @@ export default function CreateEventPage() {
     <div className="w-full bg-background text-text-primary min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-10">
         <div className="flex flex-col gap-4">
-          <button 
+          <button
             type="button"
             onClick={() => navigate('/society/events')}
             className="flex items-center gap-1 text-text-secondary hover:text-primary transition-colors self-start text-sm"
@@ -243,6 +261,24 @@ export default function CreateEventPage() {
               ))}
             </select>
             {errors.societyId && <span className="text-red-400 text-sm mt-1">{errors.societyId}</span>}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-text-primary">Campus *</label>
+            <select
+              name="campusId"
+              value={formData.campusId}
+              onChange={handleChange}
+              className={`bg-background border ${errors.campusId ? 'border-red-500' : 'border-border focus:border-[#58a6ff]'} text-text-primary rounded-lg px-4 py-2.5 w-full outline-none transition-colors`}
+            >
+              <option value="" disabled>Select your campus</option>
+              {campuses.map((campus) => (
+                <option key={campus._id || campus.id} value={campus._id || campus.id}>
+                  {campus.name}
+                </option>
+              ))}
+            </select>
+            {errors.campusId && <span className="text-red-400 text-sm mt-1">{errors.campusId}</span>}
           </div>
 
           {/* DESCRIPTION */}
@@ -310,11 +346,10 @@ export default function CreateEventPage() {
                     onChange={handleChange}
                     className="sr-only"
                   />
-                  <div className={`text-center py-2 px-4 rounded-lg border transition-all ${
-                    formData.participationType === type 
-                    ? 'bg-primary/10 border-primary text-primary' 
-                    : 'bg-background border-border text-text-secondary hover:border-[#475569]'
-                  }`}>
+                  <div className={`text-center py-2 px-4 rounded-lg border transition-all ${formData.participationType === type
+                      ? 'bg-primary/10 border-primary text-primary'
+                      : 'bg-background border-border text-text-secondary hover:border-[#475569]'
+                    }`}>
                     <span className="text-sm font-bold capitalize">{type}</span>
                   </div>
                 </label>
@@ -401,7 +436,7 @@ export default function CreateEventPage() {
               />
               {errors.startDate && <span className="text-red-400 text-sm mt-1">{errors.startDate}</span>}
             </div>
-            
+
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-text-primary">End Date & Time *</label>
               <input
@@ -482,8 +517,8 @@ export default function CreateEventPage() {
               {isSubmitting ? (
                 <>
                   <svg className="animate-spin h-5 w-5 text-text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   Publishing...
                 </>
