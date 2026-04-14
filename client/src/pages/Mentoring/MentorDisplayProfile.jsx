@@ -5,15 +5,15 @@ import Avatar from "../../components/common/Avatar";
 
 export default function MentorDisplayProfile() {
   const navigate = useNavigate();
-  const { mentorId } = useParams();
+  const { id } = useParams();
   const [mentor, setMentor] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!mentorId) return;
+    if (!id) return;
     const loadMentor = async () => {
       try {
-        const res = await getMentorById(mentorId);
+        const res = await getMentorById(id);
         setMentor(res?.data || null);
       } catch (err) {
         console.error("Failed to load mentor:", err);
@@ -22,7 +22,7 @@ export default function MentorDisplayProfile() {
       }
     };
     loadMentor();
-  }, [mentorId]);
+  }, [id]);
 
   const mentorName = mentor?.userId?.profile?.displayName || mentor?.name || "Mentor";
   const mentorAvatar = mentor?.userId?.profile?.avatar || "";
@@ -56,7 +56,7 @@ export default function MentorDisplayProfile() {
         <div className="mx-auto w-full max-w-7xl flex flex-col gap-8">
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : mentor ? (
             <>
