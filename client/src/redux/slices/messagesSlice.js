@@ -224,16 +224,23 @@ const messagesSlice = createSlice({
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.sendingStatus = 'succeeded';
-        const { conversationId, message } = action.payload;
+        const { conversationId, message } = action.payload; // message is ApiResponse { statusCode, data, message, success }
         if (!state.messages[conversationId]) {
           state.messages[conversationId] = [];
         }
-        state.messages[conversationId].push(message);
+
+        // Extract the actual message object
+        const actualMessage = message.data || message;
+
+        // Push the actual message object if it doesn't already exist (from a socket event)
+        if (!state.messages[conversationId].find(m => m._id === actualMessage._id)) {
+          state.messages[conversationId].push(actualMessage);
+        }
 
         const conv = state.conversations.find(c => c._id === conversationId);
         if (conv) {
-          conv.lastMessage = message.content;
-          conv.lastMessageAt = message.createdAt;
+          conv.lastMessage = actualMessage.content;
+          conv.lastMessageAt = actualMessage.createdAt;
           conv.unreadCount = 0;
         }
       })

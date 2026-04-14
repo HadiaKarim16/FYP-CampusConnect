@@ -4,14 +4,17 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   fetchStudyGroupById,
   selectSelectedGroup,
-  selectGroupMessages,
-  setGroupMessages,
-  addMessage,
   selectStudyGroupLoading,
 } from "../../redux/slices/studyGroupSlice";
+import {
+  fetchMessages,
+  sendMessage as sendRealMessage,
+  receiveMessage
+} from "../../redux/slices/messagesSlice";
 import PageHeader from "../../components/common/PageHeader";
 import ChatMessage from "../../components/studyGroups/ChatMessage";
 import GroupChatInput from "../../components/studyGroups/GroupChatInput";
+import { useSocket } from "../../contexts/SocketContext";
 
 export default function StudyGroupChat() {
   const navigate = useNavigate();
@@ -20,8 +23,11 @@ export default function StudyGroupChat() {
   const [message, setMessage] = useState("");
 
   const group = useSelector(selectSelectedGroup);
-  const messages = useSelector(selectGroupMessages(id));
   const loading = useSelector(selectStudyGroupLoading);
+  const sendingStatus = useSelector((state) => state.messages?.sendingStatus);
+  const chatMessages = useSelector((state) => (group && group.chatId) ? (state.messages?.messages[group.chatId] || []) : []);
+
+  const { on, off, joinChat, leaveChat } = useSocket();
 
   useEffect(() => {
     if (id) {
@@ -29,27 +35,32 @@ export default function StudyGroupChat() {
     }
   }, [dispatch, id]);
 
-  const handleSend = () => {
-    if (message.trim()) {
-      // Get current user info
-      let currentUser = { displayName: 'You' };
-      try {
-        const authState = JSON.parse(localStorage.getItem('authState') || '{}');
-        currentUser = authState?.user || currentUser;
-      } catch { /* ignore */ }
+  // Handle fetching messages and socket joining once group is loaded
+  useEffect(() => {
+    if (group?.chatId) {
+      dispatch(fetchMessages({ conversationId: group.chatId }));
+      joinChat(group.chatId);
 
-      const newMessage = {
-        id: Date.now(),
-        author: currentUser.profile?.displayName || currentUser.displayName || "You",
-        avatar: (currentUser.profile?.displayName || "Y").substring(0, 2).toUpperCase(),
-        message: message.trim(),
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        isOwn: true,
+      const handleNewMessage = (data) => {
+        if (!data) return;
+        const chatId = data.chatId || data.chat?._id?.toString() || data.chat?.toString();
+        if (chatId === group.chatId) {
+          dispatch(receiveMessage({ chatId, message: data.message || data }));
+        }
       };
-      dispatch(addMessage({ groupId: id, message: newMessage }));
+
+      on('message:new', handleNewMessage);
+
+      return () => {
+        off('message:new', handleNewMessage);
+        leaveChat(group.chatId);
+      };
+    }
+  }, [group?.chatId, dispatch, joinChat, leaveChat, on, off]);
+
+  const handleSend = () => {
+    if (message.trim() && group?.chatId && sendingStatus !== 'sending') {
+      dispatch(sendRealMessage({ conversationId: group.chatId, content: message.trim() }));
       setMessage("");
     }
   };
@@ -83,15 +94,38 @@ export default function StudyGroupChat() {
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
-          {messages.length === 0 ? (
+          {chatMessages.length === 0 ? (
             <div className="text-center py-10 text-text-secondary">
               <span className="material-symbols-outlined text-5xl mb-4 block">chat</span>
               <p>No messages yet. Start the conversation!</p>
             </div>
           ) : (
-            messages.map((msg) => (
-              <ChatMessage key={msg._id || msg.id} message={msg} isOwn={msg.isOwn} />
-            ))
+            chatMessages.map((msg) => {
+              // Get current user ID to determine which messages are "mine"
+              let currentUserId = null;
+              try {
+                const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+                currentUserId = authState?.user?._id || authState?.user?.id;
+              } catch { /* ignore */ }
+
+              const msgSenderId = msg.sender?._id?.toString() || msg.sender?.toString() || msg.senderId;
+              const isOwn = msgSenderId === currentUserId;
+
+              // Transform backend message to format expected by ChatMessage component
+              const transformedMsg = {
+                _id: msg._id,
+                author: msg.sender?.profile?.displayName || "Unknown",
+                avatar: (msg.sender?.profile?.avatar) || (msg.sender?.profile?.displayName || "U").substring(0, 2).toUpperCase(),
+                message: msg.content,
+                timestamp: new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                isOwn
+              };
+
+              return <ChatMessage key={msg._id || msg.id} message={transformedMsg} isOwn={isOwn} />;
+            })
           )}
         </div>
       </div>
